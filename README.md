@@ -209,7 +209,8 @@ graph TD
 
 ## 🎯 Domain-Driven Design (DDD)
 
-The system is organized around **bounded contexts** with clear domain boundaries and aggregate roots that maintain consistency.
+The system is organized around **bounded contexts** with clear domain boundaries and aggregate roots that maintain consistency. The **Saga pattern** coordinates cross-aggregate transactions for complex workflows like ticket purchasing.
+
 ```mermaid
 graph TD
     %% ---------------------------------------------------------
@@ -262,6 +263,88 @@ graph TD
     end
 
     %% ---------------------------------------------------------
+    %% BOUNDED CONTEXT: TICKET PURCHASE (Saga Orchestration)
+    %% ---------------------------------------------------------
+    subgraph "Ticket Purchase Context (Saga)"
+        direction TB
+        
+        subgraph "Saga Aggregate"
+            TicketPurchaseSaga[("TicketPurchaseSaga<br/>(Aggregate Root)")]
+            SagaState["SagaState<br/>(Value Object)"]
+            SagaStep["SagaStep<br/>(Entity)"]
+            
+            TicketPurchaseSaga -->|Has| SagaState
+            TicketPurchaseSaga -->|Contains| SagaStep
+        end
+        
+        subgraph "Saga Events"
+            EvtSagaStarted["⚡ SagaStarted"]
+            EvtStepCompleted["⚡ StepCompleted"]
+            EvtSagaCompleted["⚡ SagaCompleted"]
+            EvtSagaCompensated["⚡ SagaCompensated"]
+        end
+        
+        TicketPurchaseSaga -.->|Emits| EvtSagaStarted
+        TicketPurchaseSaga -.->|Emits| EvtStepCompleted
+        TicketPurchaseSaga -.->|Emits| EvtSagaCompleted
+    end
+
+    %% ---------------------------------------------------------
+    %% BOUNDED CONTEXT: PAYMENT (Supporting Domain)
+    %% ---------------------------------------------------------
+    subgraph "Payment Context (Supporting Domain)"
+        direction TB
+        
+        subgraph "Payment Aggregate"
+            Payment[("Payment<br/>(Aggregate Root)")]
+            PaymentStatus["PaymentStatus<br/>(Value Object)"]
+            PaymentMethod["PaymentMethod<br/>(Value Object)"]
+            
+            Payment -->|Has| PaymentStatus
+            Payment -->|Has| PaymentMethod
+        end
+        
+        subgraph "Payment Events"
+            EvtPaymentProcessed["⚡ PaymentProcessed"]
+            EvtPaymentRefunded["⚡ PaymentRefunded"]
+        end
+        
+        Payment -.->|Emits| EvtPaymentProcessed
+        Payment -.->|Emits| EvtPaymentRefunded
+    end
+
+    %% ---------------------------------------------------------
+    %% BOUNDED CONTEXT: TICKET (Supporting Domain)
+    %% ---------------------------------------------------------
+    subgraph "Ticket Context (Supporting Domain)"
+        direction TB
+        
+        subgraph "Ticket Aggregate"
+            Ticket[("Ticket<br/>(Aggregate Root)")]
+            TicketStatus["TicketStatus<br/>(Value Object)"]
+            TicketNumber["TicketNumber<br/>(Value Object)"]
+            
+            Ticket -->|Has| TicketStatus
+            Ticket -->|Has| TicketNumber
+        end
+        
+        subgraph "Ticket Events"
+            EvtTicketIssued["⚡ TicketIssued"]
+            EvtTicketVoided["⚡ TicketVoided"]
+        end
+        
+        Ticket -.->|Emits| EvtTicketIssued
+    end
+
+    %% ---------------------------------------------------------
+    %% SAGA ORCHESTRATION RELATIONSHIPS
+    %% ---------------------------------------------------------
+    TicketPurchaseSaga -->|1. Reserves| Reservation
+    TicketPurchaseSaga -->|2. Charges| Payment
+    TicketPurchaseSaga -->|3. Confirms| Reservation
+    TicketPurchaseSaga -->|4. Issues| Ticket
+
+    %% ---------------------------------------------------------
     %% INFRASTRUCTURE & INTEGRATION
     %% ---------------------------------------------------------
     subgraph "Infrastructure Layer"
@@ -271,6 +354,9 @@ graph TD
         EvtResCreated -->|Persisted to| OutboxTable
         EvtResConfirmed -->|Persisted to| OutboxTable
         EvtShowCreated -->|Persisted to| OutboxTable
+        EvtSagaCompleted -->|Persisted to| OutboxTable
+        EvtPaymentProcessed -->|Persisted to| OutboxTable
+        EvtTicketIssued -->|Persisted to| OutboxTable
         
         OutboxTable -->|Polled by Master Node| KafkaBus
     end
@@ -288,10 +374,15 @@ graph TD
 
     %% Relationships
     Reservation -->|References| Showtime
+    Ticket -->|References| Reservation
+    Ticket -->|References| Payment
     
     %% Styling
     style Reservation fill:#ffcc99,stroke:#cc6600,stroke-width:2px
     style Showtime fill:#99ccff,stroke:#0066cc,stroke-width:2px
+    style TicketPurchaseSaga fill:#ffccff,stroke:#660066,stroke-width:3px
+    style Payment fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style Ticket fill:#fff9c4,stroke:#f9a825,stroke-width:2px
     style OutboxTable fill:#e1f5fe,stroke:#0277bd
     style KafkaBus fill:#fff3e0,stroke:#ef6c00
     style MongoView fill:#c8e6c9,stroke:#2e7d32
@@ -318,12 +409,49 @@ Manages movie screening schedules and auditorium assignments.
 - **Domain Events**: `ShowtimeCreated`
 - **Invariants**: No overlapping showtimes in same auditorium
 
+#### 🎭 Ticket Purchase Context (Saga Orchestration)
+Coordinates the complete ticket purchase workflow across multiple bounded contexts using the Saga pattern.
+
+- **Aggregate Root**: `TicketPurchaseSaga`
+  - Orchestrates multi-step distributed transaction
+  - Tracks progress via `SagaState` value object (Started, InProgress, Completed, Compensating, Failed)
+  - Contains `SagaStep` entities representing each workflow step
+- **Domain Events**: `SagaStarted`, `StepCompleted`, `SagaCompleted`, `SagaCompensated`
+- **Invariants**: Steps execute in order, compensation reverses completed steps on failure
+- **Orchestrated Steps**:
+  1. Reserve Seats (Reservation Context)
+  2. Process Payment (Payment Context)
+  3. Confirm Reservation (Reservation Context)
+  4. Issue Ticket (Ticket Context)
+
+#### 💳 Payment Context (Supporting Domain)
+Handles payment processing and refunds.
+
+- **Aggregate Root**: `Payment`
+  - Manages payment lifecycle
+  - Uses `PaymentStatus` value object (Pending, Completed, Refunded, Failed)
+  - Uses `PaymentMethod` value object (CreditCard, DebitCard, etc.)
+- **Domain Events**: `PaymentProcessed`, `PaymentRefunded`
+- **Invariants**: One payment per reservation, refund only for completed payments
+
+#### 🎫 Ticket Context (Supporting Domain)
+Manages issued tickets and their lifecycle.
+
+- **Aggregate Root**: `Ticket`
+  - Represents a purchased ticket
+  - Uses `TicketStatus` value object (Issued, Used, Voided)
+  - Uses `TicketNumber` value object for unique identification
+- **Domain Events**: `TicketIssued`, `TicketUsed`, `TicketVoided`
+- **Invariants**: Ticket requires confirmed reservation and completed payment
+
 ### DDD Patterns Applied
 
 - **Aggregates**: Transactional consistency boundaries
 - **Value Objects**: Immutable domain concepts (IDs, Status, Time)
 - **Domain Events**: First-class business occurrences
 - **Repositories**: Aggregate persistence abstraction
+- **Saga Pattern**: Long-running transaction coordination across aggregates
+- **Compensation**: Rollback mechanism for saga failures
 - **Ubiquitous Language**: Business terms in code
 
 ## ✨ Key Features
@@ -411,8 +539,6 @@ Manages movie screening schedules and auditorium assignments.
 - MongoDB
 - Redis
 - Apache Kafka
-
-```
 
 ---
 
@@ -809,6 +935,3 @@ dotnet run
 
 ---
 
-## 📝 License
-
-MIT License
