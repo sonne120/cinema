@@ -1,5 +1,6 @@
 # 🎬 Cinema Booking System - CQRS + Outbox + Saga Pattern
 
+
 A distributed cinema booking system implementing **CQRS**, **DDD**, **Transactional Outbox Pattern**, and the **Saga Orchestration Pattern** for guaranteed event delivery and distributed transaction management.
 
 ## 🏗️ Architecture Overview
