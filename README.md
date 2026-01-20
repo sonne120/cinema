@@ -330,7 +330,7 @@ graph TD
         
         subgraph "Ticket Events"
             EvtTicketIssued["⚡ TicketIssued"]
-            EvtTicketVoided["⚡ TicketVoided"]
+            EvtTicketCancelled["⚡ TicketCancelled"]
         end
         
         Ticket -.->|Emits| EvtTicketIssued
@@ -429,9 +429,10 @@ Handles payment processing and refunds.
 
 - **Aggregate Root**: `Payment`
   - Manages payment lifecycle
-  - Uses `PaymentStatus` value object (Pending, Completed, Refunded, Failed)
-  - Uses `PaymentMethod` value object (CreditCard, DebitCard, etc.)
-- **Domain Events**: `PaymentProcessed`, `PaymentRefunded`
+  - Uses `PaymentStatus` value object (Pending, Processing, Completed, Declined, Refunded, Failed)
+  - Uses `PaymentMethod` value object (CreditCard, DebitCard, PayPal, ApplePay, GooglePay, BankTransfer)
+  - Uses `Money` value object for amounts with currency support
+- **Domain Events**: `PaymentCreated`, `PaymentCompleted`, `PaymentDeclined`, `PaymentRefunded`
 - **Invariants**: One payment per reservation, refund only for completed payments
 
 #### 🎫 Ticket Context (Supporting Domain)
@@ -441,17 +442,18 @@ Manages issued tickets and their lifecycle.
   - Represents a purchased ticket
   - Uses `TicketStatus` value object (Issued, Used, Voided)
   - Uses `TicketNumber` value object for unique identification
-- **Domain Events**: `TicketIssued`, `TicketUsed`, `TicketVoided`
+- **Domain Events**: `TicketIssued`, `TicketUsed`, `TicketCancelled`, `TicketRefunded`
 - **Invariants**: Ticket requires confirmed reservation and completed payment
 
 ### DDD Patterns Applied
 
 - **Aggregates**: Transactional consistency boundaries
-- **Value Objects**: Immutable domain concepts (IDs, Status, Time)
+- **Value Objects**: Immutable domain concepts (IDs, Status, Time, Money)
 - **Domain Events**: First-class business occurrences
 - **Repositories**: Aggregate persistence abstraction
 - **Saga Pattern**: Long-running transaction coordination across aggregates
 - **Compensation**: Rollback mechanism for saga failures
+- **Result Pattern**: Explicit error handling without exceptions
 - **Ubiquitous Language**: Business terms in code
 
 ## ✨ Key Features
@@ -620,7 +622,7 @@ sequenceDiagram
 | 1 | `ReserveSeats` | `ReleaseSeats` | Temporarily reserve selected seats |
 | 2 | `ProcessPayment` | `RefundPayment` | Charge customer's payment method |
 | 3 | `ConfirmReservation` | `CancelReservation` | Permanently confirm the reservation |
-| 4 | `IssueTicket` | `VoidTicket` | Generate and issue the ticket |
+| 4 | `IssueTicket` | `CancelTicket` | Generate and issue the ticket |
 
 ---
 
