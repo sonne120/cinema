@@ -2,6 +2,12 @@ using Cinema.Application.Common.Interfaces.Messaging;
 using Cinema.Application.Common.Interfaces.Persistence;
 using Cinema.Application.Common.Interfaces.Queries;
 using Cinema.Application.Common.Interfaces.Services;
+using Cinema.Application.Sagas;
+using Cinema.Application.Sagas.TicketPurchase;
+using Cinema.Application.Sagas.TicketPurchase.Steps;
+using Cinema.Domain.AuditoriumAggregate;
+using Cinema.Domain.PaymentAggregate;
+using Cinema.Domain.TicketAggregate;
 using Cinema.Infrastructure.BackgroundJobs;
 using Cinema.Infrastructure.Messaging;
 using Cinema.Infrastructure.Persistence.Read;
@@ -16,9 +22,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 
 namespace Cinema.Infrastructure;
-
-
-
 
 public static class DependencyInjection
 {
@@ -59,7 +62,22 @@ public static class DependencyInjection
         
         services.AddScoped<IShowtimeRepository, ShowtimeRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<ITicketRepository, TicketRepository>();
+        services.AddScoped<IAuditoriumRepository, AuditoriumRepository>();
+        services.AddScoped<ISagaStateRepository, SagaStateRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Saga services
+        services.AddScoped<IEventBus, EventBus>();
+        services.AddScoped<TicketPurchaseSaga>();
+        services.AddScoped<ReserveSeatsStep>();
+        services.AddScoped<ProcessPaymentStep>();
+        services.AddScoped<ConfirmReservationStep>();
+        services.AddScoped<IssueTicketStep>();
+        services.AddScoped<IPaymentGateway, MockPaymentGateway>();
+        services.AddScoped<IAuditoriumService, AuditoriumService>();
+        services.AddScoped<INotificationService, MockNotificationService>();
 
         
         services.Configure<MongoDbSettings>(
@@ -119,8 +137,6 @@ public static class DependencyInjection
         return services;
     }
 }
-
-
 
 
 public class DateTimeProvider : IDateTimeProvider

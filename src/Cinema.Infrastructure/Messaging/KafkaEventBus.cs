@@ -7,10 +7,6 @@ using Newtonsoft.Json;
 
 namespace Cinema.Infrastructure.Messaging;
 
-
-
-
-
 public class KafkaEventBus : IEventBus
 {
     private readonly IProducer<string, string> _producer;
@@ -74,6 +70,12 @@ public class KafkaEventBus : IEventBus
     }
 
     public async Task PublishBatchAsync<T>(IEnumerable<T> events, CancellationToken cancellationToken = default) where T : IDomainEvent
+    {
+        var tasks = events.Select(e => PublishAsync(e, cancellationToken));
+        await Task.WhenAll(tasks);
+    }
+
+    public async Task PublishAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken = default)
     {
         var tasks = events.Select(e => PublishAsync(e, cancellationToken));
         await Task.WhenAll(tasks);

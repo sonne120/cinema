@@ -613,39 +613,6 @@ sequenceDiagram
     API-->>User: 400 Bad Request (Error Details)
 ```
 
-### Saga State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> Started: Purchase Request
-    
-    Started --> ReservingSeats: Begin Saga
-    ReservingSeats --> SeatsReserved: Success
-    ReservingSeats --> Failed: Error
-    
-    SeatsReserved --> ProcessingPayment: Next Step
-    ProcessingPayment --> PaymentProcessed: Success
-    ProcessingPayment --> CompensatingSeats: Error
-    
-    PaymentProcessed --> ConfirmingReservation: Next Step
-    ConfirmingReservation --> ReservationConfirmed: Success
-    ConfirmingReservation --> CompensatingPayment: Error
-    
-    ReservationConfirmed --> IssuingTicket: Next Step
-    IssuingTicket --> Completed: Success
-    IssuingTicket --> CompensatingReservation: Error
-    
-    CompensatingReservation --> CompensatingPayment: Rollback
-    CompensatingPayment --> CompensatingSeats: Rollback
-    CompensatingSeats --> Failed: Compensated
-    
-    Completed --> [*]
-    Failed --> [*]
-
-    note right of Completed: All steps successful<br/>Ticket issued
-    note right of Failed: Transaction rolled back<br/>All changes compensated
-```
-
 ### Saga Steps Overview
 
 | Step | Action | Compensation | Description |
