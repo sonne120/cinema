@@ -1,3 +1,4 @@
+using Cinema.Api.Filters;
 using Cinema.Api.Models.Common;
 using Cinema.Api.Models.TicketPurchase;
 using Cinema.Application.Sagas;

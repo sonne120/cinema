@@ -1,3 +1,4 @@
+using Cinema.Api.Filters;
 using Cinema.Application.Common.Interfaces.Persistence;
 using Cinema.Application.Showtimes.Commands.CreateShowtime;
 using Cinema.Contracts.Showtimes;
@@ -20,9 +21,6 @@ public class ShowtimesController : ControllerBase
         _showtimeRepository = showtimeRepository;
     }
 
-    
-    
-    
     [HttpPost]
     [ProducesResponseType(typeof(ShowtimeResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -53,9 +51,6 @@ public class ShowtimesController : ControllerBase
                 showtime.CreatedAt));
     }
 
-    
-    
-    
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ShowtimeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -83,16 +78,10 @@ public class ShowtimesController : ControllerBase
             showtime.CreatedAt));
     }
 
-    
-    
-    
     [HttpGet]
     [ProducesResponseType(typeof(List<ShowtimeResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListShowtimes(CancellationToken cancellationToken)
     {
-        
-        
-        
         
         return Ok(new List<ShowtimeResponse>());
     }

@@ -3,8 +3,9 @@ using Cinema.Application;
 using Cinema.Infrastructure;
 using Cinema.Infrastructure.Persistence.Write;
 using FluentValidation;
-using Microsoft.AspNetCore.Server.Kestrel.Core; 
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,7 +31,32 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Cinema DDD CQRS API",
         Version = "v1",
-        Description = "Clean Architecture with DDD, CQRS, Event Sourcing, Kafka, SQL Server & MongoDB"
+        Description = "Clean Architecture"
+    });
+    
+    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Description = "API Key authentication. Enter your API key in the header.",
+        Type = SecuritySchemeType.ApiKey,
+        Name = "X-Api-Key",
+        In = ParameterLocation.Header,
+        Scheme = "ApiKeyScheme"
+    });
+    
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "ApiKey"
+                },
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
     });
 });
 

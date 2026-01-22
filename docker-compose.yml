@@ -349,7 +349,40 @@ services:
     networks:
       - cinema-network
 
-  
+  cinema-masternode:
+    build:
+      context: .
+      dockerfile: Dockerfile.masternode
+    container_name: cinema-masternode
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      cinema-api-1:
+        condition: service_started
+      cinema-api-2:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__MasterDb: "Server=sqlserver;Database=CinemaMasterDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
+      ConnectionStrings__CinemaApi1: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
+      ConnectionStrings__CinemaApi2: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
+      Kafka__BootstrapServers: "kafka:29092"
+      MasterNode__PollingIntervalMs: 1000
+      MasterNode__BatchSize: 1000
+      MasterNode__ProcessorThreads: 4
+    ports:
+      - "5010:8080"
+    networks:
+      - cinema-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   mongo-express:
     image: mongo-express:latest

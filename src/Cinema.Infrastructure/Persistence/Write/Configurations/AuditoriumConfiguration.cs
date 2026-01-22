@@ -31,8 +31,6 @@ public class AuditoriumConfiguration : IEntityTypeConfiguration<Auditorium>
 
         builder.Property(a => a.SeatsPerRow)
             .IsRequired();
-
-        // Ignore domain events
         builder.Ignore(a => a.DomainEvents);
     }
 }

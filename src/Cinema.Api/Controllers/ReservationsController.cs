@@ -1,3 +1,4 @@
+using Cinema.Api.Filters;
 using Cinema.Application.Reservations.Commands.ConfirmReservation;
 using Cinema.Application.Reservations.Commands.CreateReservation;
 using Cinema.Contracts.Reservations;
@@ -17,9 +18,6 @@ public class ReservationsController : ControllerBase
         _sender = sender;
     }
 
-    
-    
-    
     [HttpPost]
     [ProducesResponseType(typeof(ReservationResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -70,9 +68,6 @@ public class ReservationsController : ControllerBase
             reservation.ExpiresAt,
             reservation.ConfirmedAt));
     }
-
-    
-    
     
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ReservationResponse), StatusCodes.Status200OK)]
