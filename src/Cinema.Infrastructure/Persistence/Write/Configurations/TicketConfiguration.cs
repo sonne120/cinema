@@ -56,7 +56,6 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.Property(t => t.IssuedAt)
             .IsRequired();
 
-        // Configure Money value object for TotalPrice
         builder.OwnsOne(t => t.TotalPrice, money =>
         {
             money.Property(m => m.Amount)
@@ -67,7 +66,6 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
                 .HasMaxLength(3);
         });
 
-        // Configure Seats collection
         builder.OwnsMany(t => t.Seats, seat =>
         {
             seat.ToTable("TicketSeats");
@@ -76,7 +74,6 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
             seat.Property(s => s.Number).HasColumnName("Number");
         });
 
-        // Ignore domain events
         builder.Ignore(t => t.DomainEvents);
     }
 }

@@ -43,7 +43,6 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.CreatedAt)
             .IsRequired();
 
-        // Configure Money value object for Amount
         builder.OwnsOne(p => p.Amount, money =>
         {
             money.Property(m => m.Amount)
@@ -54,7 +53,6 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
                 .HasMaxLength(3);
         });
 
-        // Configure Money value object for RefundedAmount
         builder.OwnsOne(p => p.RefundedAmount, money =>
         {
             money.Property(m => m.Amount)

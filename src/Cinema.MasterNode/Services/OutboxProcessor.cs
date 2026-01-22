@@ -175,12 +175,10 @@ public class OutboxProcessor : IOutboxProcessor
         int workerId,
         CancellationToken cancellationToken)
     {
-        // Group messages by event type for optimized processing
         var grouped = batch.Messages
             .GroupBy(m => m.Type)
             .ToList();
 
-        // Process each group in parallel
         await Parallel.ForEachAsync(
             grouped,
             new ParallelOptions
@@ -205,10 +203,7 @@ public class OutboxProcessor : IOutboxProcessor
 
         foreach (var message in messages)
         {
-            // 1. Write to Master SQL Server database
             tasks.Add(WriteToDatabaseAsync(message, cancellationToken));
-
-            // 2. Publish to Kafka
             tasks.Add(PublishToKafkaAsync(message, cancellationToken));
         }
 
@@ -258,7 +253,6 @@ public class OutboxProcessor : IOutboxProcessor
         ReservationCreatedIntegrationEvent evt,
         CancellationToken cancellationToken)
     {
-        // Check for idempotency
         var exists = await context.Reservations
             .AnyAsync(r => r.Id == evt.ReservationId, cancellationToken);
 

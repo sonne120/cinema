@@ -49,10 +49,8 @@ public class IssueTicketStep : ISagaStep<TicketPurchaseSagaState>
             if (!state.ReservationId.HasValue || !state.PaymentId.HasValue || !state.ReservationConfirmed)
                 return StepResult.Failure("Prerequisites not met");
 
-            // Get auditorium name (defaulting if not available)
             state.AuditoriumName = await _auditoriumService.GetAuditoriumNameAsync(Guid.Empty, ct);
 
-            // Convert seats to ticket seat format
             var ticketSeats = state.Seats
                 .Select(s => Cinema.Domain.ReservationAggregate.ValueObjects.SeatNumber.Create(s.Row, s.Number))
                 .ToList();

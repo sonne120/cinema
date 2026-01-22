@@ -27,10 +27,8 @@ public class MockPaymentGateway : IPaymentGateway
         _logger.LogInformation("Processing payment of {Amount} {Currency} via {Method}", 
             amount, currency, method);
 
-        // Simulate payment processing
         var transactionId = $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
-        
-        // Simulate occasional payment failures
+
         if (new Random().Next(10) == 0)
         {
             return Task.FromResult(new PaymentGatewayResult(false, null, "Payment declined by issuing bank"));

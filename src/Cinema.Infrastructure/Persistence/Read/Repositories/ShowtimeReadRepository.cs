@@ -5,9 +5,6 @@ using MongoDB.Driver;
 namespace Cinema.Infrastructure.Persistence.Read.Repositories;
 
 
-
-
-
 public class ShowtimeReadRepository : IShowtimeReadRepository
 {
     private readonly IMongoCollection<ShowtimeReadModel> _collection;

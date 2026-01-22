@@ -4,6 +4,7 @@ using Cinema.Application.Showtimes.Commands.CreateShowtime;
 using Cinema.Contracts.Showtimes;
 using Cinema.Domain.ShowtimeAggregate.ValueObjects;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Cinema.Api.Controllers;
@@ -22,8 +23,11 @@ public class ShowtimesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "ManagerOrAdmin")]
     [ProducesResponseType(typeof(ShowtimeResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CreateShowtime(
         [FromBody] CreateShowtimeRequest request,
         CancellationToken cancellationToken)

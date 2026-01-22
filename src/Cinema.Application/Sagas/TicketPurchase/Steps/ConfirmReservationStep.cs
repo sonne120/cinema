@@ -44,11 +44,9 @@ public class ConfirmReservationStep : ISagaStep<TicketPurchaseSagaState>
             if (!reservation.Status.IsPending)
                 return StepResult.Failure("Reservation cannot be confirmed");
 
-            // Confirm reservation
             reservation.Confirm();
             _reservationRepository.Update(reservation);
 
-            // Update state
             state.ReservationConfirmed = true;
             state.LogStep(StepName, true, "Reservation confirmed");
 
@@ -68,8 +66,6 @@ public class ConfirmReservationStep : ISagaStep<TicketPurchaseSagaState>
     {
         _logger.LogInformation("Saga {SagaId}: Compensating {StepName}", state.SagaId, StepName);
 
-        // Compensation is handled by ReserveSeatsStep (releasing seats)
-        // and ProcessPaymentStep (refunding payment)
         state.ReservationConfirmed = false;
 
         return Task.FromResult(StepResult.Success("Confirmation reverted"));

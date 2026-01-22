@@ -12,9 +12,12 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageReference Include="MongoDB.Driver" Version="2.23.1" />
+    <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Cinema.Infrastructure\Cinema.Infrastructure.csproj" />
+    <ProjectReference Include="..\Cinema.Domain\Cinema.Domain.csproj" />
   </ItemGroup>
 </Project>

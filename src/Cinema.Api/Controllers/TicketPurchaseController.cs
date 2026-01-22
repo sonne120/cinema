@@ -5,12 +5,14 @@ using Cinema.Application.Sagas;
 using Cinema.Application.Sagas.TicketPurchase;
 using Cinema.Domain.PaymentAggregate.ValueObjects;
 using Cinema.Domain.ReservationAggregate.ValueObjects;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Cinema.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class TicketPurchaseController : ControllerBase
 {
     private readonly TicketPurchaseSaga _saga;

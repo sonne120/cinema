@@ -3,12 +3,14 @@ using Cinema.Application.Reservations.Commands.ConfirmReservation;
 using Cinema.Application.Reservations.Commands.CreateReservation;
 using Cinema.Contracts.Reservations;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Cinema.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ReservationsController : ControllerBase
 {
     private readonly ISender _sender;

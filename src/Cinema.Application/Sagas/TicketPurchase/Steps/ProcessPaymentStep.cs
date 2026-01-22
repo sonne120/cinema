@@ -55,7 +55,6 @@ public class ProcessPaymentStep : ISagaStep<TicketPurchaseSagaState>
 
             var amount = Money.Create(state.TotalPrice);
 
-            // Create payment record
             var paymentResult = Payment.Create(
                 state.ReservationId.Value,
                 state.CustomerId,
@@ -68,10 +67,8 @@ public class ProcessPaymentStep : ISagaStep<TicketPurchaseSagaState>
             var payment = paymentResult.Value;
             payment.StartProcessing();
 
-            // Save to database
             await _paymentRepository.AddAsync(payment, ct);
 
-            // Process with external gateway
             var gatewayResult = await _paymentGateway.ProcessPaymentAsync(
                 state.TotalPrice,
                 "USD",
@@ -94,7 +91,6 @@ public class ProcessPaymentStep : ISagaStep<TicketPurchaseSagaState>
 
             await _paymentRepository.UpdateAsync(payment, ct);
 
-            // Update state
             state.PaymentId = payment.Id.Value;
             state.AmountCharged = state.TotalPrice;
             state.PaymentProcessed = true;
@@ -130,7 +126,6 @@ public class ProcessPaymentStep : ISagaStep<TicketPurchaseSagaState>
             if (!payment.CanBeRefunded())
                 return StepResult.Success("Payment cannot be refunded");
 
-            // Refund via gateway
             if (!string.IsNullOrEmpty(state.TransactionId))
             {
                 var refundResult = await _paymentGateway.RefundAsync(

@@ -108,7 +108,6 @@ public class ReservationExpirationService : BackgroundService
             var showtime = await showtimeRepo.GetByIdAsync(reservation.ShowtimeId, ct);
             if (showtime != null)
             {
-                // Release the seats back to the showtime
                 showtimeRepo.Update(showtime);
             }
         }
@@ -158,7 +157,6 @@ public class OutboxProcessor : BackgroundService
         {
             try
             {
-                // In real implementation, publish to Kafka here
                 _logger.LogDebug("Publishing event {EventType}", message.Type);
                 message.ProcessedOnUtc = DateTime.UtcNow;
             }

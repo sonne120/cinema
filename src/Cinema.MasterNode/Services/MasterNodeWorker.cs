@@ -20,7 +20,6 @@ public class MasterNodeWorker : BackgroundService
     {
         _logger.LogInformation("Master Node Worker starting...");
 
-        // Start outbox processor
         await _outboxProcessor.StartProcessingAsync(stoppingToken);
     }
 }

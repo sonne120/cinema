@@ -9,7 +9,6 @@ public class TicketPurchaseSagaState : SagaState
     public override int TotalSteps => 4;
     public override TimeSpan Timeout => TimeSpan.FromMinutes(10);
 
-    // Input
     public Guid ShowtimeId { get; set; }
     public Guid CustomerId { get; set; }
     public List<SeatNumber> Seats { get; set; } = new();
@@ -17,13 +16,11 @@ public class TicketPurchaseSagaState : SagaState
     public string? CardNumber { get; set; }
     public string? CardHolderName { get; set; }
 
-    // Step Results
     public Guid? ReservationId { get; set; }
     public Guid? PaymentId { get; set; }
     public Guid? TicketId { get; set; }
     public string? TicketNumber { get; set; }
 
-    // Additional Data
     public decimal TotalPrice { get; set; }
     public decimal AmountCharged { get; set; }
     public string MovieTitle { get; set; } = string.Empty;
@@ -31,13 +28,11 @@ public class TicketPurchaseSagaState : SagaState
     public string AuditoriumName { get; set; } = string.Empty;
     public string? TransactionId { get; set; }
 
-    // Compensation Flags
     public bool SeatsReserved { get; set; }
     public bool PaymentProcessed { get; set; }
     public bool TicketIssued { get; set; }
     public bool ReservationConfirmed { get; set; }
 
-    // Step Log
     public List<SagaStepLog> StepLogs { get; set; } = new();
 
     public void LogStep(string stepName, bool success, string message)

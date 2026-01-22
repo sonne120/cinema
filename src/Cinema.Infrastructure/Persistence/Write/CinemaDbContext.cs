@@ -3,6 +3,7 @@ using Cinema.Domain.PaymentAggregate;
 using Cinema.Domain.ReservationAggregate;
 using Cinema.Domain.ShowtimeAggregate;
 using Cinema.Domain.TicketAggregate;
+using Cinema.Domain.UserAggregate;
 using Cinema.Infrastructure.Persistence.Write.Interceptors;
 using Cinema.Infrastructure.Persistence.Write.Outbox;
 using Microsoft.EntityFrameworkCore;
@@ -11,12 +12,12 @@ namespace Cinema.Infrastructure.Persistence.Write;
 
 public class CinemaDbContext : DbContext
 {
-    
     public DbSet<Showtime> Showtimes => Set<Showtime>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<Auditorium> Auditoriums => Set<Auditorium>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SagaStateEntity> SagaStates => Set<SagaStateEntity>();
 
@@ -30,7 +31,6 @@ public class CinemaDbContext : DbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CinemaDbContext).Assembly);
         
-        // Configure SagaStateEntity
         modelBuilder.Entity<SagaStateEntity>(e =>
         {
             e.HasKey(x => x.Id);

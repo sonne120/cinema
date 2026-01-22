@@ -1,8 +1,13 @@
+using System.Text;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using Cinema.Api.Services;
 using Cinema.GrpcService;
 using System.Net.Http;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Polly;
+using Polly.Extensions.Http;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -14,6 +19,43 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? "YourSuperSecretKeyHere1234567890!@#$%^";
+var jwtIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "Cinema.Api";
+var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "Cinema.Client";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+var retryPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .WaitAndRetryAsync(3, retryAttempt =>
+        TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+var circuitBreakerPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30));
+
+var combinedPolicy = Policy.WrapAsync(retryPolicy, circuitBreakerPolicy);
+
 builder.Services.AddGrpcClient<CinemaWriteService.CinemaWriteServiceClient>(o =>
 {
     o.Address = new Uri("http://cinema-loadbalancer:80");
@@ -22,7 +64,9 @@ builder.Services.AddGrpcClient<CinemaWriteService.CinemaWriteServiceClient>(o =>
 {
     client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
     client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
-});
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.AddPolicyHandler(combinedPolicy);
 
 builder.Services.AddGrpcClient<CinemaService.CinemaServiceClient>(o =>
 {
@@ -32,7 +76,9 @@ builder.Services.AddGrpcClient<CinemaService.CinemaServiceClient>(o =>
 {
     client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
     client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
-});
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.AddPolicyHandler(combinedPolicy);
 
 var app = builder.Build();
 
@@ -42,6 +88,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

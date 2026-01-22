@@ -32,27 +32,21 @@ public class ReserveSeatsStep : ISagaStep<TicketPurchaseSagaState>
 
         try
         {
-            // Get showtime
             var showtimeId = ShowtimeId.Create(state.ShowtimeId);
             var showtime = await _showtimeRepository.GetByIdAsync(showtimeId, ct);
             if (showtime == null)
                 return StepResult.Failure($"Showtime {state.ShowtimeId} not found");
 
-            // Check seat availability by converting SeatNumbers to Guids (seat identifiers)
             var seatGuids = state.Seats.Select(s => GetSeatGuid(s, showtime.AuditoriumId)).ToList();
             if (!showtime.AreSeatsAvailable(seatGuids))
                 return StepResult.Failure("One or more seats are not available");
 
-            // Save showtime info to state
             state.MovieTitle = showtime.MovieDetails.Title;
             state.ScreeningTime = showtime.ScreeningTime.Value;
-            // For pricing, we would need a price from the showtime - using a default for now
-            state.TotalPrice = 12.50m * state.Seats.Count; // Default price per seat
+            state.TotalPrice = 12.50m * state.Seats.Count;
 
-            // Reserve seats in showtime
             showtime.ReserveSeats(seatGuids);
 
-            // Create reservation with SeatNumber from reservation aggregate
             var reservationSeats = state.Seats
                 .Select(s => Cinema.Domain.ReservationAggregate.ValueObjects.SeatNumber.Create(s.Row, s.Number))
                 .ToList();
@@ -62,11 +56,9 @@ public class ReserveSeatsStep : ISagaStep<TicketPurchaseSagaState>
                 reservationSeats,
                 DateTime.UtcNow);
 
-            // Save to database
             await _reservationRepository.AddAsync(reservation, ct);
             _showtimeRepository.Update(showtime);
 
-            // Update state
             state.ReservationId = reservation.Id.Value;
             state.SeatsReserved = true;
             state.LogStep(StepName, true, $"Reserved {state.Seats.Count} seats");
@@ -101,12 +93,10 @@ public class ReserveSeatsStep : ISagaStep<TicketPurchaseSagaState>
                 }
             }
 
-            // Release seats in showtime
             var showtimeId = ShowtimeId.Create(state.ShowtimeId);
             var showtime = await _showtimeRepository.GetByIdAsync(showtimeId, ct);
             if (showtime != null)
             {
-                // Note: The existing Showtime doesn't have a release method, but the seats would be freed when reservation expires
                 _showtimeRepository.Update(showtime);
             }
 
@@ -128,7 +118,6 @@ public class ReserveSeatsStep : ISagaStep<TicketPurchaseSagaState>
     }
     private static Guid GetSeatGuid(SeatNumber seat, Guid auditoriumId)
     {
-        // Create a deterministic GUID based on auditorium, row, and seat number
         var bytes = auditoriumId.ToByteArray();
         bytes[14] = (byte)seat.Row;
         bytes[15] = (byte)seat.Number;

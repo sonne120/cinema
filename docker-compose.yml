@@ -183,7 +183,24 @@ services:
       retries: 3
       start_period: 40s
 
-  
+  consul:
+    image: hashicorp/consul:1.18
+    container_name: consul
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    environment:
+      CONSUL_BIND_INTERFACE: eth0
+    command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0
+    volumes:
+      - consul-data:/consul/data
+    networks:
+      - cinema-network
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   cinema-api-1:
     build:
@@ -206,6 +223,10 @@ services:
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-api-1"
+      Consul__ServicePort: "8080"
     ports:
       - "5001:8080"
     networks:
@@ -232,6 +253,10 @@ services:
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-api-2"
+      Consul__ServicePort: "8080"
     ports:
       - "5002:8080"
     networks:
@@ -328,6 +353,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:80
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__TargetServiceName: "cinema-api"
     ports:
       - "5003:80"
     networks:
@@ -412,3 +440,4 @@ volumes:
   kafka-data:
   zookeeper-data:
   zookeeper-logs:
+  consul-data:

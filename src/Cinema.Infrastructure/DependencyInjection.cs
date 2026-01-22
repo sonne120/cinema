@@ -1,3 +1,4 @@
+using Cinema.Application.Common.Interfaces.Authentication;
 using Cinema.Application.Common.Interfaces.Messaging;
 using Cinema.Application.Common.Interfaces.Persistence;
 using Cinema.Application.Common.Interfaces.Queries;
@@ -8,6 +9,8 @@ using Cinema.Application.Sagas.TicketPurchase.Steps;
 using Cinema.Domain.AuditoriumAggregate;
 using Cinema.Domain.PaymentAggregate;
 using Cinema.Domain.TicketAggregate;
+using Cinema.Domain.UserAggregate;
+using Cinema.Infrastructure.Authentication;
 using Cinema.Infrastructure.BackgroundJobs;
 using Cinema.Infrastructure.Messaging;
 using Cinema.Infrastructure.Persistence.Read;
@@ -32,12 +35,24 @@ public static class DependencyInjection
     {
         services
             .AddPersistence(configuration)
-            .AddMessaging(configuration);
+            .AddMessaging(configuration)
+            .AddAuth(configuration);
 
         if (isWriteSide)
         {
             services.AddBackgroundJobs();
         }
+
+        return services;
+    }
+
+    private static IServiceCollection AddAuth(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.AddSingleton<IAuthService, JwtTokenGenerator>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
         return services;
     }
@@ -65,10 +80,10 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ITicketRepository, TicketRepository>();
         services.AddScoped<IAuditoriumRepository, AuditoriumRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISagaStateRepository, SagaStateRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        // Saga services
         services.AddScoped<IEventBus, EventBus>();
         services.AddScoped<TicketPurchaseSaga>();
         services.AddScoped<ReserveSeatsStep>();
