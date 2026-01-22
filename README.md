@@ -200,3 +200,169 @@ src/
 ## License
 
 MIT
+
+---
+
+## Kubernetes Deployment
+
+The project includes Kubernetes manifests for production deployment with native load balancing.
+
+### Diagram 3: Kubernetes Architecture with Load Balancing
+
+```mermaid
+graph TB
+    subgraph "External Traffic"
+        Internet[Internet]
+        CloudLB[Cloud Load Balancer<br/>AWS ELB / Azure LB / GCP LB]
+    end
+
+    subgraph "Kubernetes Cluster"
+        subgraph "Ingress Layer"
+            Ingress[Nginx Ingress Controller]
+        end
+
+        subgraph "Service Layer - Load Balancing"
+            GWSvc[api-gateway-service<br/>ClusterIP]
+            APISvc[cinema-api-service<br/>ClusterIP + Load Balancing]
+            ReadSvc[read-service<br/>ClusterIP]
+        end
+
+        subgraph "Pod Layer - Auto-Scaled"
+            GW1[API Gateway Pod 1]
+            GW2[API Gateway Pod 2]
+            
+            API1[Cinema API Pod 1]
+            API2[Cinema API Pod 2]
+            API3[Cinema API Pod 3]
+            
+            Read1[Read Service Pod 1]
+            Read2[Read Service Pod 2]
+            
+            Master[Master Node Pod]
+        end
+
+        subgraph "Data Layer"
+            SQL[(SQL Server)]
+            Mongo[(MongoDB)]
+            Redis[(Redis)]
+            Kafka[Kafka]
+        end
+
+        HPA[Horizontal Pod Autoscaler]
+    end
+
+    Internet --> CloudLB
+    CloudLB --> Ingress
+    Ingress --> GWSvc
+    
+    GWSvc --> GW1 & GW2
+    GW1 & GW2 --> APISvc
+    
+    APISvc -->|Round Robin| API1
+    APISvc -->|Round Robin| API2
+    APISvc -->|Round Robin| API3
+    
+    API1 & API2 & API3 --> SQL
+    
+    GW1 & GW2 --> ReadSvc
+    ReadSvc --> Read1 & Read2
+    Read1 & Read2 --> Mongo
+    Read1 & Read2 --> Redis
+    
+    Master --> SQL
+    Master --> Kafka
+    Kafka --> Read1 & Read2
+
+    HPA -.->|Scale| API1 & API2 & API3
+
+    style APISvc fill:#f96,stroke:#333,stroke-width:2px
+    style HPA fill:#9f9,stroke:#333
+    style CloudLB fill:#69f,stroke:#333
+```
+
+### How Kubernetes Load Balancing Works
+
+**1. External Load Balancer (Layer 4)**
+```
+Internet → Cloud Load Balancer → Ingress Controller
+```
+- Cloud providers (AWS/Azure/GCP) provision a Layer 4 load balancer
+- Distributes traffic across Ingress Controller pods
+
+**2. Ingress Controller (Layer 7)**
+```
+Ingress → Service (ClusterIP)
+```
+- Nginx Ingress handles SSL termination, path routing
+- Routes `/api/*` to `api-gateway-service`
+
+**3. Kubernetes Service (kube-proxy)**
+```
+Service → Pod endpoints (Round Robin)
+```
+- `cinema-api-service` load balances across all API pods
+- Uses iptables/IPVS rules for round-robin distribution
+- Health checks via readiness probes
+
+**4. Horizontal Pod Autoscaler (HPA)**
+```
+CPU/Memory metrics → Scale pods 3-10
+```
+- Automatically scales API pods based on load
+- Maintains minimum 3 replicas for high availability
+
+### Kubernetes vs Docker Compose Load Balancing
+
+| Aspect | Docker Compose | Kubernetes |
+|--------|---------------|------------|
+| **Load Balancer** | Custom YARP + Consul | Native Service + kube-proxy |
+| **Service Discovery** | Consul | Built-in DNS + Endpoints |
+| **Auto-scaling** | Manual | HPA (automatic) |
+| **Health Checks** | Custom | Liveness/Readiness probes |
+| **SSL Termination** | Application | Ingress Controller |
+| **Rolling Updates** | Manual | Built-in strategy |
+
+### Deploy to Kubernetes
+
+```bash
+# Create namespace and deploy all resources
+kubectl apply -k k8s/
+
+# Or deploy individually
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/infrastructure.yaml
+kubectl apply -f k8s/cinema-api.yaml
+kubectl apply -f k8s/api-gateway.yaml
+kubectl apply -f k8s/read-service.yaml
+kubectl apply -f k8s/master-node.yaml
+kubectl apply -f k8s/ingress.yaml
+
+# Check deployment status
+kubectl get pods -n cinema
+kubectl get services -n cinema
+kubectl get hpa -n cinema
+
+# View logs
+kubectl logs -f deployment/cinema-api -n cinema
+
+# Scale manually (if needed)
+kubectl scale deployment cinema-api --replicas=5 -n cinema
+```
+
+### K8s Files Structure
+
+```
+k8s/
+├── namespace.yaml      # Namespace definition
+├── configmap.yaml      # Configuration data
+├── secrets.yaml        # Sensitive data (base64)
+├── infrastructure.yaml # SQL, MongoDB, Redis, Kafka
+├── cinema-api.yaml     # API + HPA + PDB
+├── api-gateway.yaml    # Gateway + LoadBalancer Service
+├── read-service.yaml   # Read Service + HPA
+├── master-node.yaml    # Outbox processor
+├── ingress.yaml        # Ingress + Network Policy
+└── kustomization.yaml  # Kustomize config
+```

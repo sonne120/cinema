@@ -1,0 +1,8 @@
+# Cinema Booking System - Kubernetes Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cinema
+  labels:
+    app: cinema-booking
+    environment: production

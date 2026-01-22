@@ -1,0 +1,75 @@
+# Cinema Booking System - ConfigMaps
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cinema-config
+  namespace: cinema
+data:
+  # Database Configuration
+  SQLSERVER_HOST: "sqlserver-service"
+  SQLSERVER_PORT: "1433"
+  SQLSERVER_DATABASE: "CinemaDb"
+
+  # MongoDB Configuration
+  MONGODB_HOST: "mongodb-service"
+  MONGODB_PORT: "27017"
+  MONGODB_DATABASE: "CinemaReadDb"
+
+  # Redis Configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  KAFKA_TOPIC: "cinema.domain.events"
+
+  # Consul Configuration (for hybrid mode)
+  CONSUL_HOST: "consul-service"
+  CONSUL_PORT: "8500"
+
+  # JWT Configuration
+  JWT_ISSUER: "CinemaBookingSystem"
+  JWT_AUDIENCE: "CinemaBookingSystemUsers"
+  JWT_EXPIRY_MINUTES: "60"
+
+  # Application Settings
+  ASPNETCORE_ENVIRONMENT: "Production"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cinema-api-config
+  namespace: cinema
+data:
+  appsettings.json: |
+    {
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "AllowedHosts": "*",
+      "ConnectionStrings": {
+        "DefaultConnection": "Server=sqlserver-service;Database=CinemaDb;User Id=sa;Password=Cinema@2024!;TrustServerCertificate=True"
+      },
+      "Jwt": {
+        "Secret": "YourSuperSecretKeyThatIsAtLeast32CharactersLong!",
+        "Issuer": "CinemaBookingSystem",
+        "Audience": "CinemaBookingSystemUsers",
+        "ExpiryMinutes": 60,
+        "RefreshTokenExpiryDays": 7
+      },
+      "Kafka": {
+        "BootstrapServers": "kafka-service:9092",
+        "Topic": "cinema.domain.events"
+      },
+      "Redis": {
+        "ConnectionString": "redis-service:6379"
+      },
+      "MongoDB": {
+        "ConnectionString": "mongodb://mongodb-service:27017",
+        "DatabaseName": "CinemaReadDb"
+      }
+    }
