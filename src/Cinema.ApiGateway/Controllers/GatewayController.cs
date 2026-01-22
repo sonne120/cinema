@@ -3,6 +3,8 @@ using Cinema.Api.Services; // Write Service Namespace
 using Cinema.GrpcService; // Read Service Namespace
 using Grpc.Core;
 using Cinema.ApiGateway.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
 
 using WriteRequest = Cinema.Api.Services;
 using ReadRequest = Cinema.GrpcService;
@@ -11,6 +13,7 @@ namespace Cinema.ApiGateway.Controllers
 {
     [ApiController]
     [Route("api")]
+    [Authorize] // 1. Gateway validates JWT first
     public class GatewayController : ControllerBase
     {
         private readonly CinemaWriteService.CinemaWriteServiceClient _writeClient;
@@ -27,6 +30,17 @@ namespace Cinema.ApiGateway.Controllers
             _logger = logger;
         }
 
+        private async Task<Metadata> GetAuthHeaders()
+        {
+             var accessToken = await HttpContext.GetTokenAsync("access_token");
+             var metadata = new Metadata();
+             if (!string.IsNullOrEmpty(accessToken))
+             {
+                 metadata.Add("Authorization", $"Bearer {accessToken}"); // 2. Forward token to API
+             }
+             return metadata;
+        }
+
         [HttpPost("showtimes")]
         [ProducesResponseType(typeof(CreateShowtimeResponseDto), 200)]
         public async Task<IActionResult> CreateShowtime([FromBody] CreateShowtimeRequestDto request)
@@ -40,7 +54,8 @@ namespace Cinema.ApiGateway.Controllers
                     AuditoriumId = request.AuditoriumId
                 };
 
-                var response = await _writeClient.CreateShowtimeAsync(grpcRequest);
+                // 3. Pass auth metadata
+                var response = await _writeClient.CreateShowtimeAsync(grpcRequest, await GetAuthHeaders());
                 
                 return Ok(new CreateShowtimeResponseDto
                 {
@@ -69,7 +84,7 @@ namespace Cinema.ApiGateway.Controllers
                     RowNumber = request.RowNumber
                 };
 
-                var response = await _writeClient.CreateReservationAsync(grpcRequest);
+                var response = await _writeClient.CreateReservationAsync(grpcRequest, await GetAuthHeaders());
 
                 return Ok(new CreateReservationResponseDto
                 {
@@ -86,6 +101,7 @@ namespace Cinema.ApiGateway.Controllers
 
         [HttpGet("showtimes/{id}")]
         [ProducesResponseType(typeof(ShowtimeDto), 200)]
+        // Read operations might not need Auth, or you can add [AllowAnonymous] if needed
         public async Task<IActionResult> GetShowtime(string id)
         {
             try

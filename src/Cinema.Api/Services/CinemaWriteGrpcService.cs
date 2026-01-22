@@ -2,9 +2,11 @@ using Cinema.Application.Reservations.Commands.CreateReservation;
 using Cinema.Application.Showtimes.Commands.CreateShowtime;
 using Grpc.Core;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cinema.Api.Services;
 
+[Authorize] // 4. API verifies rights/roles again (Defense in Depth)
 public class CinemaWriteGrpcService : CinemaWriteService.CinemaWriteServiceBase
 {
     private readonly ISender _sender;

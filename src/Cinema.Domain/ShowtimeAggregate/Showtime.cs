@@ -4,10 +4,6 @@ using Cinema.Domain.ShowtimeAggregate.ValueObjects;
 
 namespace Cinema.Domain.ShowtimeAggregate;
 
-
-
-
-
 public sealed class Showtime : AggregateRoot<ShowtimeId>
 {
     private readonly List<Guid> _reservedSeats = new();
@@ -94,6 +90,20 @@ public sealed class Showtime : AggregateRoot<ShowtimeId>
             if (!_reservedSeats.Contains(seatId))
             {
                 _reservedSeats.Add(seatId);
+            }
+        }
+    }
+
+    public void ReleaseSeats(IEnumerable<Guid> seatIds)
+    {
+        if (Status == ShowtimeStatus.Cancelled)
+            throw new InvalidOperationException("Cannot release seats for cancelled showtime");
+
+        foreach (var seatId in seatIds)
+        {
+            if (_reservedSeats.Contains(seatId))
+            {
+                _reservedSeats.Remove(seatId);
             }
         }
     }

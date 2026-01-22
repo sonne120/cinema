@@ -100,14 +100,17 @@ builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Consul Registration Active: Hybrid/Option B
+// The API registers itself, so the custom LoadBalancer can find it.
 var serviceHost = builder.Configuration["Consul:ServiceHost"] ?? "localhost";
 var servicePort = int.Parse(builder.Configuration["Consul:ServicePort"] ?? "8080");
 builder.Services.AddConsulServiceRegistration(
     builder.Configuration,
     serviceName: "cinema-api",
-    serviceHost: serviceHost,
+    serviceHost: serviceHost, // In K8s, this should be the POD IP
     servicePort: servicePort,
     tags: new[] { "api", "cinema", "dotnet", "write" });
+
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:3000", "http://localhost:5173", "http://cinema-gateway:8080" };

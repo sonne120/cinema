@@ -6,11 +6,6 @@ using Newtonsoft.Json;
 
 namespace Cinema.Infrastructure.Persistence.Write.Interceptors;
 
-
-
-
-
-
 public class PublishDomainEventsInterceptor : SaveChangesInterceptor
 {
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(

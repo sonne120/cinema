@@ -6,9 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cinema.Infrastructure.Persistence.Write.Repositories;
 
-
-
-
 public class ShowtimeRepository : IShowtimeRepository
 {
     private readonly CinemaDbContext _dbContext;

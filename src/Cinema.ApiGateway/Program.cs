@@ -58,6 +58,7 @@ var combinedPolicy = Policy.WrapAsync(retryPolicy, circuitBreakerPolicy);
 
 builder.Services.AddGrpcClient<CinemaWriteService.CinemaWriteServiceClient>(o =>
 {
+    // Pointing back to the Custom YARP Load Balancer
     o.Address = new Uri("http://cinema-loadbalancer:80");
 })
 .ConfigureHttpClient(client =>

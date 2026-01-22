@@ -50,10 +50,14 @@ var app = builder.Build();
 
 app.MapGet("/", () => "Cinema Master Node Running (Outbox Pattern)");
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
-    db.Database.EnsureCreated();
-}
+/* 
+   Database migration/creation should be handled by an init container or the primary API service,
+   not by a background worker node to avoid race conditions.
+*/
+// using (var scope = app.Services.CreateScope())
+// {
+//     var db = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
+//     db.Database.EnsureCreated();
+// }
 
 app.Run();

@@ -97,6 +97,8 @@ public class ReserveSeatsStep : ISagaStep<TicketPurchaseSagaState>
             var showtime = await _showtimeRepository.GetByIdAsync(showtimeId, ct);
             if (showtime != null)
             {
+                var seatGuids = state.Seats.Select(s => GetSeatGuid(s, showtime.AuditoriumId)).ToList();
+                showtime.ReleaseSeats(seatGuids);
                 _showtimeRepository.Update(showtime);
             }
 
