@@ -1,0 +1,43 @@
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy project files
+COPY src/Cinema.MasterNode.Domain/Cinema.MasterNode.Domain.csproj src/Cinema.MasterNode.Domain/
+COPY src/Cinema.MasterNode/Cinema.MasterNode.csproj src/Cinema.MasterNode/
+
+# Restore dependencies for Cinema.MasterNode project
+RUN dotnet restore src/Cinema.MasterNode/Cinema.MasterNode.csproj
+
+# Copy everything else
+COPY src/ src/
+
+# Build the application
+WORKDIR /src/src/Cinema.MasterNode
+RUN dotnet build Cinema.MasterNode.csproj -c Release -o /app/build
+
+# Stage 2: Publish
+FROM build AS publish
+WORKDIR /src/src/Cinema.MasterNode
+RUN dotnet publish Cinema.MasterNode.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 3: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+
+# Copy published files
+COPY --from=publish /app/publish .
+
+# Expose port
+EXPOSE 8080
+
+# Set environment variables
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl --fail http://localhost:8080/ || exit 1
+
+# Run the application
+ENTRYPOINT ["dotnet", "Cinema.MasterNode.dll"]
