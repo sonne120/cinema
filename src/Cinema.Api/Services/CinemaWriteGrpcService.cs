@@ -55,9 +55,6 @@ public class CinemaWriteGrpcService : CinemaWriteService.CinemaWriteServiceBase
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid showtime ID format"));
         }
 
-        
-        
-
         var seats = new List<SeatRequest>
         {
             new SeatRequest(request.RowNumber, request.SeatNumber)

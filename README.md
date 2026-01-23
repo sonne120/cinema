@@ -197,10 +197,6 @@ src/
 └── Cinema.Contracts/     # DTOs
 ```
 
-## License
-
-MIT
-
 ---
 
 ## Kubernetes Deployment
@@ -210,74 +206,55 @@ The project includes Kubernetes manifests for production deployment with native 
 ### Diagram 3: Kubernetes Architecture with Load Balancing
 
 ```mermaid
-graph TB
-    subgraph "External Traffic"
-        Internet[Internet]
-        CloudLB[Cloud Load Balancer<br/>AWS ELB / Azure LB / GCP LB]
+graph TD
+    Client([Client Apps])
+    
+    subgraph Kubernetes Cluster
+        Ingress[NGINX Ingress Controller]
+        
+        subgraph Namespace: cinema
+            Gateway[API Gateway\n(Hybrid: Ocelot + BFF)]
+            LB[Client-Side Load Balancer\n(YARP + Consul)]
+            
+            Registry[(Consul\nService Registry)]
+            
+            subgraph Data Plane
+                WriteAPI[Cinema.Api\n(Write / gRPC + REST)]
+                ReadAPI[Cinema.ReadService\n(Read / gRPC)]
+                Master[MasterNode Worker\n(Background Jobs)]
+            end
+            
+            subgraph Persistence
+                SQL[(SQL Server)]
+                Mongo[(MongoDB)]
+                Redis[(Redis)]
+                Kafka{Kafka Message Bus}
+            end
+        end
     end
 
-    subgraph "Kubernetes Cluster"
-        subgraph "Ingress Layer"
-            Ingress[Nginx Ingress Controller]
-        end
-
-        subgraph "Service Layer - Load Balancing"
-            GWSvc[api-gateway-service<br/>ClusterIP]
-            APISvc[cinema-api-service<br/>ClusterIP + Load Balancing]
-            ReadSvc[read-service<br/>ClusterIP]
-        end
-
-        subgraph "Pod Layer - Auto-Scaled"
-            GW1[API Gateway Pod 1]
-            GW2[API Gateway Pod 2]
-            
-            API1[Cinema API Pod 1]
-            API2[Cinema API Pod 2]
-            API3[Cinema API Pod 3]
-            
-            Read1[Read Service Pod 1]
-            Read2[Read Service Pod 2]
-            
-            Master[Master Node Pod]
-        end
-
-        subgraph "Data Layer"
-            SQL[(SQL Server)]
-            Mongo[(MongoDB)]
-            Redis[(Redis)]
-            Kafka[Kafka]
-        end
-
-        HPA[Horizontal Pod Autoscaler]
-    end
-
-    Internet --> CloudLB
-    CloudLB --> Ingress
-    Ingress --> GWSvc
+    %% Traffic Flow
+    Client -->|HTTPS /api| Ingress
+    Ingress -->|Route /api/*| Gateway
     
-    GWSvc --> GW1 & GW2
-    GW1 & GW2 --> APISvc
+    %% Gateway Routing Logic
+    Gateway -- \"1. Login (REST Pass-through)\" --> LB
+    Gateway -- \"2. Commands (gRPC BFF)\" --> LB
     
-    APISvc -->|Round Robin| API1
-    APISvc -->|Round Robin| API2
-    APISvc -->|Round Robin| API3
+    %% Load Balancing
+    LB -- \"Polls IPs\" -.-> Registry
+    WriteAPI -- \"Registers Pod IP\" -.-> Registry
+    LB -- \"Routes to Pod IP\" --> WriteAPI
     
-    API1 & API2 & API3 --> SQL
+    %% Internal Comms
+    Gateway -- \"Queries (gRPC)\" --> ReadAPI
+    WriteAPI -- \"Events\" --> Kafka
+    Master -- \"Consumes\" --> Kafka
     
-    GW1 & GW2 --> ReadSvc
-    ReadSvc --> Read1 & Read2
-    Read1 & Read2 --> Mongo
-    Read1 & Read2 --> Redis
-    
-    Master --> SQL
-    Master --> Kafka
-    Kafka --> Read1 & Read2
-
-    HPA -.->|Scale| API1 & API2 & API3
-
-    style APISvc fill:#f96,stroke:#333,stroke-width:2px
-    style HPA fill:#9f9,stroke:#333
-    style CloudLB fill:#69f,stroke:#333
+    %% Data Access
+    WriteAPI --> SQL
+    ReadAPI --> Mongo
+    ReadAPI --> Redis
 ```
 
 ### How Kubernetes Load Balancing Works
