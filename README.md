@@ -210,46 +210,46 @@ graph TD
     Client([Client Apps])
     
     subgraph Kubernetes Cluster
-        Ingress[NGINX Ingress Controller]
+        Ingress["NGINX Ingress Controller"]
         
-        subgraph Namespace: cinema
-            Gateway[API Gateway\n(Hybrid: Ocelot + BFF)]
-            LB[Client-Side Load Balancer\n(YARP + Consul)]
+        subgraph "Namespace: cinema"
+            Gateway["API Gateway<br>(Hybrid: Ocelot + BFF)"]
+            LB["Client-Side Load Balancer<br>(YARP + Consul)"]
             
-            Registry[(Consul\nService Registry)]
+            Registry[("Consul<br>Service Registry")]
             
             subgraph Data Plane
-                WriteAPI[Cinema.Api\n(Write / gRPC + REST)]
-                ReadAPI[Cinema.ReadService\n(Read / gRPC)]
-                Master[MasterNode Worker\n(Background Jobs)]
+                WriteAPI["Cinema.Api<br>(Write / gRPC + REST)"]
+                ReadAPI["Cinema.ReadService<br>(Read / gRPC)"]
+                Master["MasterNode Worker<br>(Background Jobs)"]
             end
             
             subgraph Persistence
-                SQL[(SQL Server)]
-                Mongo[(MongoDB)]
-                Redis[(Redis)]
-                Kafka{Kafka Message Bus}
+                SQL[("SQL Server")]
+                Mongo[("MongoDB")]
+                Redis[("Redis")]
+                Kafka{"Kafka Message Bus"}
             end
         end
     end
 
     %% Traffic Flow
     Client -->|HTTPS /api| Ingress
-    Ingress -->|Route /api/*| Gateway
+    Ingress -->|"Route /api/*"| Gateway
     
     %% Gateway Routing Logic
-    Gateway -- \"1. Login (REST Pass-through)\" --> LB
-    Gateway -- \"2. Commands (gRPC BFF)\" --> LB
+    Gateway -- "1. Login (REST Pass-through)" --> LB
+    Gateway -- "2. Commands (gRPC BFF)" --> LB
     
     %% Load Balancing
-    LB -- \"Polls IPs\" -.-> Registry
-    WriteAPI -- \"Registers Pod IP\" -.-> Registry
-    LB -- \"Routes to Pod IP\" --> WriteAPI
+    LB -- "Polls IPs" -.-> Registry
+    WriteAPI -- "Registers Pod IP" -.-> Registry
+    LB -- "Routes to Pod IP" --> WriteAPI
     
     %% Internal Comms
-    Gateway -- \"Queries (gRPC)\" --> ReadAPI
-    WriteAPI -- \"Events\" --> Kafka
-    Master -- \"Consumes\" --> Kafka
+    Gateway -- "Queries (gRPC)" --> ReadAPI
+    WriteAPI -- "Events" --> Kafka
+    Master -- "Consumes" --> Kafka
     
     %% Data Access
     WriteAPI --> SQL
