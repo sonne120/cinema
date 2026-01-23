@@ -235,21 +235,21 @@ graph TD
 
     %% Traffic Flow
     Client -->|HTTPS /api| Ingress
-    Ingress -->|"Route /api/*"| Gateway
+    Ingress -->|Route /api/*| Gateway
     
     %% Gateway Routing Logic
-    Gateway -- "1. Login (REST Pass-through)" --> LB
-    Gateway -- "2. Commands (gRPC BFF)" --> LB
+    Gateway -->|1. Login REST Pass-through| LB
+    Gateway -->|2. Commands gRPC BFF| LB
     
     %% Load Balancing
-    LB -- "Polls IPs" -.-> Registry
-    WriteAPI -- "Registers Pod IP" -.-> Registry
-    LB -- "Routes to Pod IP" --> WriteAPI
+    LB -.->|Polls IPs| Registry
+    WriteAPI -.->|Registers Pod IP| Registry
+    LB -->|Routes to Pod IP| WriteAPI
     
     %% Internal Comms
-    Gateway -- "Queries (gRPC)" --> ReadAPI
-    WriteAPI -- "Events" --> Kafka
-    Master -- "Consumes" --> Kafka
+    Gateway -->|Queries gRPC| ReadAPI
+    WriteAPI -->|Events| Kafka
+    Master -->|Consumes| Kafka
     
     %% Data Access
     WriteAPI --> SQL
