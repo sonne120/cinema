@@ -10,11 +10,6 @@ using Quartz;
 
 namespace Cinema.Infrastructure.BackgroundJobs;
 
-
-
-
-
-
 [DisallowConcurrentExecution]
 public class ProcessOutboxMessagesJob : IJob
 {

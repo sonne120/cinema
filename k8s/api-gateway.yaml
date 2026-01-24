@@ -1,0 +1,123 @@
+# API Gateway - Entry point for all external requests
+# In Kubernetes, the Gateway routes to cinema-api-service which load balances automatically
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: cinema
+  labels:
+    app: api-gateway
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        tier: frontend
+    spec:
+      containers:
+        - name: api-gateway
+          image: cinema-apigateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+            # In Kubernetes, we point directly to the cinema-api-service
+            # Kubernetes Service handles load balancing (no need for custom LB)
+            - name: ReverseProxy__Clusters__cinema-api__Destinations__destination1__Address
+              value: "http://cinema-api-service"
+            - name: Jwt__Secret
+              valueFrom:
+                secretKeyRef:
+                  name: cinema-secrets
+                  key: JWT_SECRET
+            - name: Jwt__Issuer
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: JWT_ISSUER
+            - name: Jwt__Audience
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: JWT_AUDIENCE
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+---
+# API Gateway Service - LoadBalancer type for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: cinema
+  labels:
+    app: api-gateway
+  annotations:
+    # For cloud providers (AWS, GCP, Azure)
+    # service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 8080
+      protocol: TCP
+  # LoadBalancer type exposes service externally
+  # Cloud providers provision actual load balancer (AWS ELB, Azure LB, GCP LB)
+  type: LoadBalancer
+
+---
+# HPA for API Gateway
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: cinema
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

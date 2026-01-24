@@ -2,6 +2,7 @@ using Cinema.MasterNode.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace Cinema.MasterNode.UnitTests.Services;
 

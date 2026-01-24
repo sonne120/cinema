@@ -1,0 +1,94 @@
+# Master Node - Outbox Processor (Background Worker)
+# Single replica to avoid duplicate event processing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: master-node
+  namespace: cinema
+  labels:
+    app: master-node
+    tier: worker
+spec:
+  # Single replica - outbox processor should not have multiple instances
+  # to avoid duplicate event processing
+  replicas: 1
+  selector:
+    matchLabels:
+      app: master-node
+  strategy:
+    type: Recreate  # Ensure only one instance runs at a time
+  template:
+    metadata:
+      labels:
+        app: master-node
+        tier: worker
+    spec:
+      containers:
+        - name: master-node
+          image: cinema-masternode:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+            - name: ConnectionStrings__DefaultConnection
+              value: "Server=sqlserver-service;Database=CinemaDb;User Id=sa;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True"
+            - name: ConnectionStrings__MasterConnection
+              value: "Server=sqlserver-service;Database=CinemaMasterDb;User Id=sa;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True"
+            - name: SQLSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cinema-secrets
+                  key: SQLSERVER_PASSWORD
+            - name: Kafka__BootstrapServers
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: Kafka__Topic
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: KAFKA_TOPIC
+            # Outbox processor settings
+            - name: OutboxProcessor__PollingIntervalMs
+              value: "1000"
+            - name: OutboxProcessor__BatchSize
+              value: "100"
+            - name: OutboxProcessor__MaxDegreeOfParallelism
+              value: "4"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          # No HTTP endpoint - background worker
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "ps aux | grep dotnet"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+---
+# Optional: Service for monitoring/metrics endpoint if needed
+apiVersion: v1
+kind: Service
+metadata:
+  name: master-node-service
+  namespace: cinema
+  labels:
+    app: master-node
+spec:
+  selector:
+    app: master-node
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+  type: ClusterIP

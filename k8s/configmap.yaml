@@ -32,6 +32,10 @@ data:
   JWT_AUDIENCE: "CinemaBookingSystemUsers"
   JWT_EXPIRY_MINUTES: "60"
 
+  # Observability Configuration
+  SEQ_SERVER_URL: "http://seq:5341"
+  OPENTELEMETRY_OTLP_ENDPOINT: "http://jaeger:4317"
+
   # Application Settings
   ASPNETCORE_ENVIRONMENT: "Production"
 

@@ -3,10 +3,6 @@ using MongoDB.Driver;
 
 namespace Cinema.Infrastructure.Persistence.Read;
 
-
-
-
-
 public class MongoDbContext
 {
     private readonly IMongoDatabase _database;
@@ -22,9 +18,6 @@ public class MongoDbContext
         return _database.GetCollection<T>(name);
     }
 }
-
-
-
 
 public class MongoDbSettings
 {

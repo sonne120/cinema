@@ -2,6 +2,7 @@ using Cinema.MasterNode.Domain.Models;
 using Cinema.MasterNode.Persistence;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Xunit;
 
 namespace Cinema.MasterNode.UnitTests.Persistence;
 

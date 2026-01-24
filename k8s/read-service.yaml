@@ -1,0 +1,119 @@
+# Read Service - gRPC service for queries (CQRS read side)
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: read-service
+  namespace: cinema
+  labels:
+    app: read-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: read-service
+  template:
+    metadata:
+      labels:
+        app: read-service
+        tier: backend
+    spec:
+      containers:
+        - name: read-service
+          image: cinema-readservice:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: grpc
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080;http://+:8081"
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+            - name: MongoDB__ConnectionString
+              value: "mongodb://mongodb-service:27017"
+            - name: MongoDB__DatabaseName
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: MONGODB_DATABASE
+            - name: Redis__ConnectionString
+              value: "redis-service:6379"
+            - name: Kafka__BootstrapServers
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: Kafka__GroupId
+              value: "cinema-read-service"
+            - name: Kafka__Topic
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: KAFKA_TOPIC
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+---
+# Read Service - ClusterIP for internal access
+apiVersion: v1
+kind: Service
+metadata:
+  name: read-service
+  namespace: cinema
+  labels:
+    app: read-service
+spec:
+  selector:
+    app: read-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+    - name: grpc
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP
+
+---
+# HPA for Read Service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: read-service-hpa
+  namespace: cinema
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: read-service
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

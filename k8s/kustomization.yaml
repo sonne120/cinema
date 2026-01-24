@@ -1,0 +1,36 @@
+# Kustomization file for deploying all resources
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cinema
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - infrastructure.yaml
+  - observability.yaml
+  - cinema-api.yaml
+  - api-gateway.yaml
+  - loadbalancer.yaml
+  - read-service.yaml
+  - master-node.yaml
+  - ingress.yaml
+
+# Common labels for all resources
+commonLabels:
+  app.kubernetes.io/name: cinema-booking
+  app.kubernetes.io/managed-by: kustomize
+
+# Image customization (override in overlays)
+images:
+  - name: cinema-api
+    newTag: latest
+  - name: cinema-apigateway
+    newTag: latest
+  - name: cinema-readservice
+    newTag: latest
+  - name: cinema-masternode
+    newTag: latest
+  - name: cinema-loadbalancer
+    newTag: latest

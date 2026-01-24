@@ -2,14 +2,38 @@ using Cinema.MasterNode.Services;
 using Cinema.MasterNode.Persistence;
 using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
+    .WriteTo.Seq(builder.Configuration["Seq:ServerUrl"] ?? "http://localhost:5341")
+    .Enrich.WithProperty("Service", "Cinema.MasterNode")
     .CreateLogger();
 builder.Host.UseSerilog();
+
+// OpenTelemetry
+var serviceName = "Cinema.MasterNode";
+var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"] ?? "http://localhost:4317";
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(serviceName))
+    .WithTracing(tracing => tracing
+        .AddSource(serviceName)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddSqlClientInstrumentation(options => options.SetDbStatementForText = true)
+        .AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint)))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter()
+        .AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint)));
 
 builder.Services.AddDbContextPool<MasterDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MasterDb"),
@@ -47,6 +71,8 @@ builder.Services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
 builder.Services.AddHostedService<MasterNodeWorker>();
 
 var app = builder.Build();
+
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 app.MapGet("/", () => "Cinema Master Node Running (Outbox Pattern)");
 

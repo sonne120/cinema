@@ -1,0 +1,215 @@
+# Cinema API - Deployment with Kubernetes Load Balancing
+# This replaces the custom Load Balancer - Kubernetes handles load balancing natively
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cinema-api
+  namespace: cinema
+  labels:
+    app: cinema-api
+    tier: backend
+spec:
+  # Multiple replicas for high availability and load distribution
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cinema-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: cinema-api
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: cinema-api
+          image: cinema-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: ConnectionStrings__DefaultConnection
+              value: "Server=sqlserver-service;Database=CinemaDb;User Id=sa;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True"
+            - name: SQLSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cinema-secrets
+                  key: SQLSERVER_PASSWORD
+            - name: Jwt__Secret
+              valueFrom:
+                secretKeyRef:
+                  name: cinema-secrets
+                  key: JWT_SECRET
+            - name: Jwt__Issuer
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: JWT_ISSUER
+            - name: Jwt__Audience
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: JWT_AUDIENCE
+
+            # Environment variables for Consul Registration in Kubernetes
+            # We inject the actual Pod IP so the LoadBalancer can reach it directly
+            - name: Consul__ServiceHost
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: Consul__ServicePort
+              value: "8080"
+            - name: Consul__Host
+              value: "consul-server"
+            - name: Consul__Port
+              value: "8500"
+
+            - name: Kafka__BootstrapServers
+              valueFrom:
+                configMapKeyRef:
+                  name: cinema-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: Redis__ConnectionString
+              value: "redis-service:6379"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          # Health checks for Kubernetes load balancing
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Startup probe for slow starting containers
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+      # Pod anti-affinity to spread across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - cinema-api
+                topologyKey: kubernetes.io/hostname
+
+---
+# Cinema API Service - ClusterIP for internal load balancing
+apiVersion: v1
+kind: Service
+metadata:
+  name: cinema-api-service
+  namespace: cinema
+  labels:
+    app: cinema-api
+spec:
+  selector:
+    app: cinema-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  # ClusterIP provides internal load balancing via kube-proxy
+  # Traffic is distributed using iptables/IPVS round-robin
+  type: ClusterIP
+  # Session affinity for stateful requests (optional)
+  # sessionAffinity: ClientIP
+  # sessionAffinityConfig:
+  #   clientIP:
+  #     timeoutSeconds: 3600
+
+---
+# Horizontal Pod Autoscaler - Auto-scaling based on CPU/Memory
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cinema-api-hpa
+  namespace: cinema
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cinema-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+
+---
+# Pod Disruption Budget - Ensure availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cinema-api-pdb
+  namespace: cinema
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: cinema-api
