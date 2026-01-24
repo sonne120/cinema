@@ -189,9 +189,9 @@ graph LR
     end
 
     subgraph "Observability Backend"
-        Seq[Seq (Logs)]
-        Jaeger[Jaeger (Traces)]
-        Prom[Prometheus (Metrics)]
+        Seq[Seq - Logs]
+        Jaeger[Jaeger - Traces]
+        Prom[Prometheus - Metrics]
     end
     
     subgraph "Visualization"
@@ -200,12 +200,18 @@ graph LR
         JaegerUI[Jaeger UI]
     end
 
-    API & GW & Nodes --> OTEL
-    API & GW & Nodes --> Seri
+    API --> OTEL
+    GW --> OTEL
+    Nodes --> OTEL
+    API --> Seri
+    GW --> Seri
+    Nodes --> Seri
     
     Seri -->|Push Logs| Seq
     OTEL -->|Push Traces| Jaeger
-    Prom -->|Scrape Metrics| API & GW & Nodes
+    Prom -->|Scrape Metrics| API
+    Prom -->|Scrape Metrics| GW
+    Prom -->|Scrape Metrics| Nodes
 
     Seq --> SeqUI
     Jaeger --> JaegerUI
