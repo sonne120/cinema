@@ -14,7 +14,17 @@ A distributed microservices cinema booking platform built with **.NET 8** and **
 
 ## Tech Stack
 
-**.NET 8** | **SQL Server** | **MongoDB** | **Redis** | **Kafka** | **Consul** | **YARP** | **gRPC**
+**.NET 8** | **SQL Server** | **MongoDB** | **Redis** | **Kafka** | **Consul** | **YARP** | **gRPC** | **OpenTelemetry**
+
+## Observability Stack
+
+The system implements a full observability solution using **OpenTelemetry** standards:
+
+| Component | Purpose | Tool | Port (UI) |
+|-----------|---------|------|------|
+| **Logging** | Centralized structured logging | **Seq** | `:5341` |
+| **Tracing** | Distributed request tracing | **Jaeger** | `:16686` |
+| **Metrics** | Infrastructure & App metrics | **Prometheus** | `:9090` |
 
 ---
 
@@ -160,6 +170,51 @@ graph TB
 | 2 | Process Payment | Refund Payment |
 | 3 | Confirm Reservation | Cancel Reservation |
 | 4 | Issue Ticket | Void Ticket |
+
+---
+
+## Diagram 3: Observability Pipeline
+
+```mermaid
+graph LR
+    subgraph "Application"
+        API[Api Services]
+        GW[Gateway]
+        Nodes[Worker Nodes]
+    end
+
+    subgraph "Agents/Exporters"
+        OTEL[OpenTelemetry SDK]
+        Seri[Serilog Sink]
+    end
+
+    subgraph "Observability Backend"
+        Seq[Seq (Logs)]
+        Jaeger[Jaeger (Traces)]
+        Prom[Prometheus (Metrics)]
+    end
+    
+    subgraph "Visualization"
+        Graf[Grafana]
+        SeqUI[Seq UI]
+        JaegerUI[Jaeger UI]
+    end
+
+    API & GW & Nodes --> OTEL
+    API & GW & Nodes --> Seri
+    
+    Seri -->|Push Logs| Seq
+    OTEL -->|Push Traces| Jaeger
+    Prom -->|Scrape Metrics| API & GW & Nodes
+
+    Seq --> SeqUI
+    Jaeger --> JaegerUI
+    Prom --> Graf
+    
+    style Seq fill:#f9f,stroke:#333
+    style Jaeger fill:#9cf,stroke:#333
+    style Prom fill:#ff9,stroke:#333
+```
 
 ---
 
@@ -310,6 +365,7 @@ kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/secrets.yaml
 kubectl apply -f k8s/infrastructure.yaml
+kubectl apply -f k8s/observability.yaml
 kubectl apply -f k8s/cinema-api.yaml
 kubectl apply -f k8s/api-gateway.yaml
 kubectl apply -f k8s/read-service.yaml
