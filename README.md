@@ -7,7 +7,7 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
 ## Architecture
 
 ```
-  ═══ WRITE PATH:  clients → gateway → load balancer → Cinema API ×2 → SQL Server outbox ═══
+     WRITE PATH:  clients → gateway → load balancer → Cinema API ×2 → SQL Server outbox
 
                          ┌────────────────────────────────┐
                          │          Client apps           │  HTTPS · JWT bearer
@@ -56,7 +56,7 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
               └───────────────────┘   │  cinema.domain.events          │
                                       └───────────────┬────────────────┘
                                                       │
-  ═══ READ PATH (CQRS):  Kafka → ReadService ×3 → MongoDB rs0 → gRPC query service ═══
+      READ PATH (CQRS):  Kafka → ReadService ×3 → MongoDB rs0 → gRPC query service 
                                                       │ consume · manual commit
                                                       ▼
                          ┌────────────────────────────────┐
@@ -78,7 +78,7 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
                          │  HTTP/2 · never writes         │  straight from Mongo
                          └────────────────────────────────┘
 
-  ═══ OBSERVABILITY:  every service exports logs, traces and metrics (OpenTelemetry) ═══
+      OBSERVABILITY:  every service exports logs, traces and metrics (OpenTelemetry) 
 
      ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
      │  Seq  ·  :5341       │  │  Jaeger  ·  :16686   │  │  Prometheus  ·  :9090│
@@ -87,32 +87,32 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
      └──────────────────────┘  └──────────────────────┘  └──────────────────────┘
 ```
 
-0. **Ingress.** Clients hit the **API Gateway** (`:5005`) — **Ocelot** routing, **JWT** bearer
-   validation, Swagger, and **Polly** retry + circuit breaker around two gRPC clients: a *write*
-   client pointed at the load balancer and a *read* client pointed at `cinema-grpc`.
-1. **Load balancing & discovery.** Write calls go over gRPC (HTTP/2 plaintext) to the
-   **LoadBalancer** (`:5003`), a **YARP** proxy whose route table is built from **Consul**
-   (`ConsulProxyConfigProvider`): the API instances register themselves, the balancer discovers
-   the healthy ones and round-robins across them.
-2. **Write side.** **Cinema API ×2** (`:5001` / `:5002`) serves REST *and* gRPC over the same
-   Clean Architecture stack (MediatR handlers → domain aggregates). Each command writes the
-   aggregate change **and** the integration event into `OutboxMessages` **in one SQL Server
-   transaction** — no dual-write, nothing is lost if Kafka is down.
-3. **Saga.** Ticket purchase is orchestrated by `TicketPurchaseSaga` — four steps with
-   compensation, saga state persisted in SQL Server (see [Ticket purchase saga](#ticket-purchase-saga)).
-4. **Outbox relay.** **MasterNode** (`:5010`) polls the outbox of *both* API instances, claiming
-   batches with `WITH (READPAST, UPDLOCK, ROWLOCK)` so replicas never grab the same rows. Each
-   batch is fanned out with TPL (`Parallel.ForEachAsync`, grouped by event type): rows are
-   projected into the master SQL database *and* published to Kafka, then deleted. A failed batch
-   is released (`ProcessedOnUtc = NULL` + error) and retried.
-5. **Kafka.** Events are keyed by aggregate id and routed by type to `cinema.reservations`,
-   `cinema.showtimes` or `cinema.domain.events`, with `event-id` / `event-type` /
-   `aggregate-type` / `aggregate-id` headers.
-6. **Read side (CQRS).** **ReadService ×3** consume `cinema.domain.events` in the
-   `cinema-read-service-group` (auto-commit off — the offset is committed **only after** the
-   projection succeeds) and upsert denormalized documents into the **MongoDB replica set**
+1. **Ingress.** Clients hit the API Gateway on `:5005`: Ocelot routing, JWT bearer validation,
+   Swagger, and Polly (retry + circuit breaker) wrapped around two gRPC clients — a write client
+   aimed at the load balancer, and a read client aimed at `cinema-grpc`.
+2. **Load balancing and discovery.** Write calls travel over gRPC (HTTP/2 plaintext) to the
+   LoadBalancer on `:5003`, a YARP proxy whose route table comes from Consul
+   (`ConsulProxyConfigProvider`): the API instances register themselves, and the balancer
+   round-robins across the healthy ones.
+3. **Write side.** Cinema API ×2 (`:5001`, `:5002`) serves REST and gRPC from one Clean
+   Architecture stack (MediatR handlers → domain aggregates). Every command writes the aggregate
+   change and its integration event into `OutboxMessages` in a single SQL Server transaction, so
+   there is no dual write and nothing is lost while Kafka is down.
+4. **Saga.** Ticket purchase is orchestrated by `TicketPurchaseSaga`: four steps with
+   compensation, saga state persisted in SQL Server. See [Ticket purchase saga](#ticket-purchase-saga).
+5. **Outbox relay.** MasterNode (`:5010`) polls the outbox of both API instances and claims
+   batches with `WITH (READPAST, UPDLOCK, ROWLOCK)`, so replicas never grab the same rows. Each
+   batch is fanned out with `Parallel.ForEachAsync` grouped by event type: rows are projected into
+   the master SQL database, published to Kafka, then deleted. A failed batch is released
+   (`ProcessedOnUtc = NULL` plus the error) and retried.
+6. **Kafka.** Events are keyed by aggregate id and routed by type to `cinema.reservations`,
+   `cinema.showtimes`, or `cinema.domain.events`, carrying `event-id`, `event-type`,
+   `aggregate-type`, and `aggregate-id` headers.
+7. **Read side (CQRS).** ReadService ×3 consumes `cinema.domain.events` in the
+   `cinema-read-service-group` consumer group with auto-commit off — the offset is committed only
+   after the projection succeeds — and upserts denormalized documents into the MongoDB replica set
    (`CinemaReadDb`: showtimes, reservations).
-7. **Queries.** **Cinema gRPC** (`:7080`) serves read-only queries from MongoDB over HTTP/2; the
+8. **Queries.** Cinema gRPC (`:7080`) serves read-only queries from MongoDB over HTTP/2. The
    gateway calls it directly, so query traffic never touches SQL Server or the write path.
 
 ### Ticket purchase saga
@@ -120,21 +120,22 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
 Orchestrated saga with per-step compensation, replayed in reverse for steps that actually ran:
 
 ```
-   ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
-   │ ① Reserve seats│─▶│ ② Take payment │─▶│ ③ Confirm resv │─▶│ ④ Issue ticket │
-   └───────┬────────┘  └───────┬────────┘  └───────┬────────┘  └───────┬────────┘
-           │                   │                   │                   │
-           ▼                   ▼                   ▼                   ▼
-     release seats       refund via          revert the          cancel the
-     + expire resv       payment gateway     confirmation        issued ticket
-           ▲                   ▲                   ▲                   │
-           └───────────────────┴───────────────────┴───────────────────┘
-              compensation runs in reverse order (failure or timeout)
+   ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
+   │ 1. Reserve seats  │─▶│ 2. Take payment   │─▶│ 3. Confirm booking│─▶│ 4. Issue ticket   │
+   └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘
+             │                      │                      │                      │  on failure
+             ▼                      ▼                      ▼                      ▼  or timeout
+       release seats           refund via             revert the             cancel the
+    expire reservation       payment gateway       confirmation flag       issued ticket
+             ▲                      ▲                      ▲                      │
+             └──────────────────────┴──────────────────────┴──────────────────────┘
+                        compensation runs in reverse order → Compensated
 ```
 
-All four steps succeed → saga **Completed**; any step failure or a timeout → compensation runs
-backwards and the saga ends **Compensated**. State and step progress live in SQL Server
-(`SagaStateRepository`), and every step emits a saga event on the bus.
+The steps are `ReserveSeatsStep` → `ProcessPaymentStep` → `ConfirmReservationStep` →
+`IssueTicketStep`. All four succeed → the saga ends **Completed**; any step failure or a timeout
+→ compensation runs backwards and the saga ends **Compensated**. State and step progress live in
+SQL Server (`SagaStateRepository`), and every step emits a saga event on the bus.
 
 ---
 
