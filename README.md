@@ -4,116 +4,137 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
 
 ---
 
-## Architecture Diagram
+## Architecture
 
-```mermaid
-flowchart TB
-    Client([👤 Client Apps]):::client
+```
+  ═══ WRITE PATH:  clients → gateway → load balancer → Cinema API ×2 → SQL Server outbox ═══
 
-    subgraph EDGE[" 🌐 EDGE LAYER "]
-        direction LR
-        GW["🚪 API Gateway<br/><b>YARP + JWT</b><br/>:5005"]:::gateway
-        LB["⚖️ Load Balancer<br/><b>YARP</b><br/>:5003"]:::gateway
-    end
+                         ┌────────────────────────────────┐
+                         │          Client apps           │  HTTPS · JWT bearer
+                         │       web · mobile · CLI       │  commands + queries
+                         └───────────────┬────────────────┘
+                                         ▼
+                         ┌────────────────────────────────┐
+                         │  API Gateway  ·  :5005         │  single entry point
+                         │  Ocelot routing · JWT auth     │  REST in, gRPC out
+                         │  Polly retry + circuit breaker │  Swagger UI
+                         │  gRPC clients: write · read    │
+                         └────┬───────────────────────┬───┘
+     write (gRPC / h2c)       │                       └────▶  read (gRPC) — jumps
+                              ▼                               to Cinema gRPC :7080
+   ┌────────────────┐    ┌────────────────────────────────┐   in the READ PATH
+   │  Consul :8500  │───▶│  LoadBalancer  ·  :5003        │  route table built
+   │                │    │  YARP reverse proxy            │  from Consul, not
+   │  service       │    │  round-robin over live pods    │  from static config
+   │  registry +    │    └───────────────┬────────────────┘
+   │  health checks │                    ▼
+   │                │    ┌────────────────────────────────┐
+   │                │◀───│  Cinema API × 2 :5001 / :5002  │  Clean Architecture
+   └────────────────┘    │  REST + gRPC · MediatR · DDD   │  CQRS write side
+        register         │  Ticket Saga orchestrator      │
+                         └───────────────┬────────────────┘
+                                         │ one transaction: state + event
+                                         ▼
+                         ┌────────────────────────────────┐
+                         │  SQL Server  ·  :1433          │  CinemaDb
+                         │  aggregates · saga state       │  write model
+                         │  OutboxMessages (transactional)│
+                         └───────────────┬────────────────┘
+                                         │ claim batch (READPAST, UPDLOCK)
+                                         ▼
+                         ┌────────────────────────────────┐
+                         │  MasterNode  ·  :5010          │  polls the outbox
+                         │  outbox processor              │  of both API
+                         │  TPL batches · delete on ack   │  instances
+                         └────┬──────────────────────┬────┘
+                   project    │                      │  publish
+                              ▼                      ▼
+              ┌───────────────────┐   ┌────────────────────────────────┐
+              │  MasterDb (SQL)   │   │  Kafka  ·  :9092               │
+              │  reservations     │   │  cinema.reservations           │
+              │  showtimes        │   │  cinema.showtimes              │
+              └───────────────────┘   │  cinema.domain.events          │
+                                      └───────────────┬────────────────┘
+                                                      │
+  ═══ READ PATH (CQRS):  Kafka → ReadService ×3 → MongoDB rs0 → gRPC query service ═══
+                                                      │ consume · manual commit
+                                                      ▼
+                         ┌────────────────────────────────┐
+                         │  ReadService × 3               │  group
+                         │  Kafka consumer workers        │  cinema-read-
+                         │  project → read models         │  service-group
+                         └───────────────┬────────────────┘
+                                         ▼  upsert
+                         ┌────────────────────────────────┐
+                         │  MongoDB replica set  rs0      │  CinemaReadDb
+                         │  mongo1 :27017 (primary)       │  showtimes ·
+                         │  mongo2 :27018 · mongo3 :27019 │  reservations
+                         └───────────────┬────────────────┘
+                                         │ query
+   API Gateway                           ▼
+   read (gRPC) ────────▶ ┌────────────────────────────────┐
+                         │  Cinema gRPC  ·  :7080 → 5001  │  serves the
+                         │  read-only query service       │  gateway's queries
+                         │  HTTP/2 · never writes         │  straight from Mongo
+                         └────────────────────────────────┘
 
-    subgraph DISCOVERY[" 🧭 SERVICE DISCOVERY "]
-        Consul[("🔷 Consul<br/>:8500")]:::discovery
-    end
+  ═══ OBSERVABILITY:  every service exports logs, traces and metrics (OpenTelemetry) ═══
 
-    subgraph WRITE[" ✍️ WRITE SIDE (CQRS) "]
-        direction TB
-        API1["Cinema API #1<br/>:5001"]:::api
-        API2["Cinema API #2<br/>:5002"]:::api
-        SQL[("🗄️ SQL Server")]:::db
-        Outbox[/"📤 Outbox Table"/]:::outbox
-    end
-
-    subgraph EVENTS[" ⚡ EVENT PROCESSING "]
-        direction TB
-        Master["⚙️ Master Node<br/>Outbox Processor"]:::worker
-        Kafka{{"📨 Kafka Bus<br/>:9092"}}:::kafka
-        Saga["🔄 <b>Ticket Saga</b><br/>1️⃣ Reserve → 2️⃣ Pay<br/>3️⃣ Confirm → 4️⃣ Issue"]:::saga
-    end
-
-    subgraph DDD[" 🧩 BOUNDED CONTEXTS (DDD) "]
-        BC["📦 Reservation  •  Payment<br/>Ticket  •  Showtime"]:::ddd
-    end
-
-    subgraph READ[" 📖 READ SIDE (CQRS) "]
-        direction TB
-        ReadSvc["📡 Read Service<br/><b>gRPC</b>"]:::api
-        Mongo[("🍃 MongoDB")]:::db
-        Redis[("⚡ Redis Cache")]:::cache
-    end
-
-    subgraph OBS[" 👁️ OBSERVABILITY (OpenTelemetry) "]
-        direction LR
-        Seq["📝 <b>Seq</b><br/>Logs :5341"]:::obs
-        Jaeger["🔍 <b>Jaeger</b><br/>Traces :16686"]:::obs
-        Prom["📊 <b>Prometheus</b><br/>Metrics :9090"]:::obs
-    end
-
-    %% ===== MAIN REQUEST FLOW =====
-    Client ==>|"① HTTPS"| GW
-    GW ==>|"② Route"| LB
-    LB ==>|"③ Forward"| API1
-    LB ==>|"③ Forward"| API2
-    API1 ==>|"④ Write"| SQL
-    API2 ==>|"④ Write"| SQL
-    API1 ==>|"④ Event"| Outbox
-    API2 ==>|"④ Event"| Outbox
-
-    %% ===== EVENT PIPELINE =====
-    Master ==>|"⑤ Poll"| Outbox
-    Master ==>|"⑥ Publish"| Kafka
-    Kafka ==>|"⑦ Consume"| ReadSvc
-    ReadSvc ==>|"⑧ Project"| Mongo
-    ReadSvc -.->|"Cache"| Redis
-
-    %% ===== QUERY PATH =====
-    GW -->|"🔎 gRPC Query"| ReadSvc
-
-    %% ===== SERVICE DISCOVERY =====
-    API1 -.->|"register"| Consul
-    API2 -.->|"register"| Consul
-    LB -.->|"discover"| Consul
-
-    %% ===== DOMAIN =====
-    API1 -.-> BC
-    API2 -.-> BC
-    Saga -.->|"orchestrates"| BC
-    Master --- Saga
-
-    %% ===== OBSERVABILITY =====
-    EDGE -.->|"📡 OTel"| OBS
-    WRITE -.->|"📡 OTel"| OBS
-    READ -.->|"📡 OTel"| OBS
-    EVENTS -.->|"📡 OTel"| OBS
-
-    %% ===== STYLES =====
-    classDef client fill:#E3F2FD,stroke:#1565C0,stroke-width:3px,color:#0D47A1
-    classDef gateway fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
-    classDef discovery fill:#F8BBD0,stroke:#AD1457,stroke-width:2px,color:#880E4F
-    classDef api fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
-    classDef db fill:#BBDEFB,stroke:#1565C0,stroke-width:2px,color:#0D47A1
-    classDef cache fill:#FFCDD2,stroke:#C62828,stroke-width:2px,color:#B71C1C
-    classDef outbox fill:#FFE0B2,stroke:#E65100,stroke-width:2px,color:#BF360C
-    classDef worker fill:#D1C4E9,stroke:#4527A0,stroke-width:2px,color:#311B92
-    classDef kafka fill:#FFF59D,stroke:#F57F17,stroke-width:3px,color:#F57F17
-    classDef saga fill:#FFAB91,stroke:#BF360C,stroke-width:3px,color:#BF360C
-    classDef ddd fill:#B2DFDB,stroke:#00695C,stroke-width:2px,color:#004D40
-    classDef obs fill:#E1BEE7,stroke:#6A1B9A,stroke-width:2px,color:#4A148C
-
-    style EDGE fill:#FAFAFA,stroke:#616161,stroke-width:2px
-    style DISCOVERY fill:#FCE4EC,stroke:#AD1457,stroke-width:2px
-    style WRITE fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
-    style READ fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
-    style EVENTS fill:#FFF8E1,stroke:#F57F17,stroke-width:2px
-    style DDD fill:#E0F2F1,stroke:#00695C,stroke-width:2px
-    style OBS fill:#F3E5F5,stroke:#6A1B9A,stroke-width:2px
+     ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+     │  Seq  ·  :5341       │  │  Jaeger  ·  :16686   │  │  Prometheus  ·  :9090│
+     │  structured logs     │  │  OTLP traces :4317   │  │  scrapes /metrics    │
+     │  (Serilog sink)      │  │  (OpenTelemetry)     │  │  from every service  │
+     └──────────────────────┘  └──────────────────────┘  └──────────────────────┘
 ```
 
-> **Legend:** `══►` main request flow  •  `──►` query/sync call  •  `┄┄►` async/registration/telemetry
+0. **Ingress.** Clients hit the **API Gateway** (`:5005`) — **Ocelot** routing, **JWT** bearer
+   validation, Swagger, and **Polly** retry + circuit breaker around two gRPC clients: a *write*
+   client pointed at the load balancer and a *read* client pointed at `cinema-grpc`.
+1. **Load balancing & discovery.** Write calls go over gRPC (HTTP/2 plaintext) to the
+   **LoadBalancer** (`:5003`), a **YARP** proxy whose route table is built from **Consul**
+   (`ConsulProxyConfigProvider`): the API instances register themselves, the balancer discovers
+   the healthy ones and round-robins across them.
+2. **Write side.** **Cinema API ×2** (`:5001` / `:5002`) serves REST *and* gRPC over the same
+   Clean Architecture stack (MediatR handlers → domain aggregates). Each command writes the
+   aggregate change **and** the integration event into `OutboxMessages` **in one SQL Server
+   transaction** — no dual-write, nothing is lost if Kafka is down.
+3. **Saga.** Ticket purchase is orchestrated by `TicketPurchaseSaga` — four steps with
+   compensation, saga state persisted in SQL Server (see [Ticket purchase saga](#ticket-purchase-saga)).
+4. **Outbox relay.** **MasterNode** (`:5010`) polls the outbox of *both* API instances, claiming
+   batches with `WITH (READPAST, UPDLOCK, ROWLOCK)` so replicas never grab the same rows. Each
+   batch is fanned out with TPL (`Parallel.ForEachAsync`, grouped by event type): rows are
+   projected into the master SQL database *and* published to Kafka, then deleted. A failed batch
+   is released (`ProcessedOnUtc = NULL` + error) and retried.
+5. **Kafka.** Events are keyed by aggregate id and routed by type to `cinema.reservations`,
+   `cinema.showtimes` or `cinema.domain.events`, with `event-id` / `event-type` /
+   `aggregate-type` / `aggregate-id` headers.
+6. **Read side (CQRS).** **ReadService ×3** consume `cinema.domain.events` in the
+   `cinema-read-service-group` (auto-commit off — the offset is committed **only after** the
+   projection succeeds) and upsert denormalized documents into the **MongoDB replica set**
+   (`CinemaReadDb`: showtimes, reservations).
+7. **Queries.** **Cinema gRPC** (`:7080`) serves read-only queries from MongoDB over HTTP/2; the
+   gateway calls it directly, so query traffic never touches SQL Server or the write path.
+
+### Ticket purchase saga
+
+Orchestrated saga with per-step compensation, replayed in reverse for steps that actually ran:
+
+```
+   ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+   │ ① Reserve seats│─▶│ ② Take payment │─▶│ ③ Confirm resv │─▶│ ④ Issue ticket │
+   └───────┬────────┘  └───────┬────────┘  └───────┬────────┘  └───────┬────────┘
+           │                   │                   │                   │
+           ▼                   ▼                   ▼                   ▼
+     release seats       refund via          revert the          cancel the
+     + expire resv       payment gateway     confirmation        issued ticket
+           ▲                   ▲                   ▲                   │
+           └───────────────────┴───────────────────┴───────────────────┘
+              compensation runs in reverse order (failure or timeout)
+```
+
+All four steps succeed → saga **Completed**; any step failure or a timeout → compensation runs
+backwards and the saga ends **Compensated**. State and step progress live in SQL Server
+(`SagaStateRepository`), and every step emits a saga event on the bus.
 
 ---
 
@@ -140,5 +161,3 @@ docker-compose up -d
 kubectl apply -k k8s/
 kubectl get pods -n cinema
 ```
-
-

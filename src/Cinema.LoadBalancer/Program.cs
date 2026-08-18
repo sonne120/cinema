@@ -20,7 +20,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// Ensure high performance for Proxy
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(80, o => o.Protocols = HttpProtocols.Http1AndHttp2);
@@ -42,7 +42,7 @@ builder.Services.AddReverseProxy();
 
 builder.Services.AddHealthChecks();
 
-// -------  OpenTelemetry ------
+// OpenTelemetry
 var serviceName = "Cinema.LoadBalancer";
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
