@@ -8,7 +8,7 @@ namespace Cinema.Infrastructure.Persistence.Write.Repositories;
 public class PaymentRepository : IPaymentRepository
 {
     private readonly CinemaDbContext _context;
-    
+
     public PaymentRepository(CinemaDbContext context) => _context = context;
 
     public async Task<Payment?> GetByIdAsync(PaymentId id, CancellationToken ct = default)

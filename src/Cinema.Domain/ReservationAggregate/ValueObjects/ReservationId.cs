@@ -2,9 +2,6 @@ using Cinema.Domain.Common.Models;
 
 namespace Cinema.Domain.ReservationAggregate.ValueObjects;
 
-
-
-
 public sealed class ReservationId : ValueObject
 {
     public Guid Value { get; private set; }

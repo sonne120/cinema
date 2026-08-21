@@ -3,9 +3,6 @@ using MediatR;
 
 namespace Cinema.Application.Showtimes.Commands.CreateShowtime;
 
-
-
-
 public record CreateShowtimeCommand(
     string MovieImdbId,
     DateTime ScreeningTime,

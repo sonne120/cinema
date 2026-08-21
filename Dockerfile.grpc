@@ -2,45 +2,47 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy project files (no solution file needed)
+COPY Directory.Build.props Directory.Packages.props ./
 COPY src/Cinema.Domain/Cinema.Domain.csproj src/Cinema.Domain/
 COPY src/Cinema.Application/Cinema.Application.csproj src/Cinema.Application/
 COPY src/Cinema.Contracts/Cinema.Contracts.csproj src/Cinema.Contracts/
+COPY src/Cinema.Persistence.Read/Cinema.Persistence.Read.csproj src/Cinema.Persistence.Read/
+COPY src/Cinema.ServiceDiscovery/Cinema.ServiceDiscovery.csproj src/Cinema.ServiceDiscovery/
 COPY src/Cinema.Infrastructure/Cinema.Infrastructure.csproj src/Cinema.Infrastructure/
 COPY src/Cinema.GrpcService/Cinema.GrpcService.csproj src/Cinema.GrpcService/
 
-# Restore dependencies for Cinema.GrpcService project
 RUN dotnet restore src/Cinema.GrpcService/Cinema.GrpcService.csproj
 
-# Copy everything else
 COPY src/ src/
 
-# Build the application
 WORKDIR /src/src/Cinema.GrpcService
 RUN dotnet build Cinema.GrpcService.csproj -c Release -o /app/build
 
-# Stage 2: Publish
 FROM build AS publish
 WORKDIR /src/src/Cinema.GrpcService
 RUN dotnet publish Cinema.GrpcService.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-# Stage 3: Runtime
+
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Copy published files
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+
 COPY --from=publish /app/publish .
 
-# Expose gRPC port
+
 EXPOSE 5001
 
-# Set environment variables
+
 ENV ASPNETCORE_URLS=http://+:5001
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Health check for gRPC
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl --fail http://localhost:5001/health || exit 1
+  CMD curl --fail --http2-prior-knowledge http://localhost:5001/health || exit 1
 
-# Run the application
+
 ENTRYPOINT ["dotnet", "Cinema.GrpcService.dll"]

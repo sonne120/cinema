@@ -25,7 +25,14 @@ services:
   mongo1:
     image: mongo:7.0
     container_name: mongo1
-    command: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile"]
+    entrypoint:
+      - bash
+      - -c
+      - |
+        install -m 400 -o mongodb -g mongodb /keyfile-src /data/keyfile
+        exec docker-entrypoint.sh "$$@"
+      - --
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile"]
     ports:
       - "27017:27017"
     environment:
@@ -33,7 +40,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password123
     volumes:
       - mongo1-data:/data/db
-      - ./mongo-keyfile:/data/keyfile:ro
+      - ./mongo-keyfile:/keyfile-src:ro
     networks:
       - cinema-network
     healthcheck:
@@ -47,7 +54,14 @@ services:
   mongo2:
     image: mongo:7.0
     container_name: mongo2
-    command: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile"]
+    entrypoint:
+      - bash
+      - -c
+      - |
+        install -m 400 -o mongodb -g mongodb /keyfile-src /data/keyfile
+        exec docker-entrypoint.sh "$$@"
+      - --
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile"]
     ports:
       - "27018:27017"
     environment:
@@ -55,7 +69,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password123
     volumes:
       - mongo2-data:/data/db
-      - ./mongo-keyfile:/data/keyfile:ro
+      - ./mongo-keyfile:/keyfile-src:ro
     networks:
       - cinema-network
     healthcheck:
@@ -69,7 +83,14 @@ services:
   mongo3:
     image: mongo:7.0
     container_name: mongo3
-    command: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile"]
+    entrypoint:
+      - bash
+      - -c
+      - |
+        install -m 400 -o mongodb -g mongodb /keyfile-src /data/keyfile
+        exec docker-entrypoint.sh "$$@"
+      - --
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile"]
     ports:
       - "27019:27017"
     environment:
@@ -77,7 +98,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password123
     volumes:
       - mongo3-data:/data/db
-      - ./mongo-keyfile:/data/keyfile:ro
+      - ./mongo-keyfile:/keyfile-src:ro
     networks:
       - cinema-network
     healthcheck:
@@ -223,6 +244,7 @@ services:
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
       Consul__Host: "consul"
       Consul__Port: "8500"
       Consul__ServiceHost: "cinema-api-1"
@@ -253,6 +275,7 @@ services:
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
       Consul__Host: "consul"
       Consul__Port: "8500"
       Consul__ServiceHost: "cinema-api-2"
@@ -276,6 +299,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-read-service-1"
+      Consul__ServicePort: "0"
       ConnectionStrings__SqlServer: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
     networks:
       - cinema-network
@@ -294,6 +322,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-read-service-2"
+      Consul__ServicePort: "0"
       ConnectionStrings__SqlServer: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
     networks:
       - cinema-network
@@ -312,6 +345,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-read-service-3"
+      Consul__ServicePort: "0"
       ConnectionStrings__SqlServer: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
     networks:
       - cinema-network
@@ -337,6 +375,11 @@ services:
       MongoDbSettings__ConnectionString: "mongodb://root:password123@mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0&authSource=admin"
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-grpc"
+      Consul__ServicePort: "5001"
     ports:
       - "7080:5001"
     networks:
@@ -353,9 +396,12 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:80
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
       Consul__Host: "consul"
       Consul__Port: "8500"
       Consul__TargetServiceName: "cinema-api"
+      Consul__ServiceHost: "cinema-loadbalancer"
+      Consul__ServicePort: "80"
     ports:
       - "5003:80"
     networks:
@@ -372,6 +418,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-gateway"
+      Consul__ServicePort: "8080"
     ports:
       - "5005:8080"
     networks:
@@ -398,6 +449,11 @@ services:
       ConnectionStrings__CinemaApi1: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
       ConnectionStrings__CinemaApi2: "Server=sqlserver;Database=CinemaDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True"
       Kafka__BootstrapServers: "kafka:29092"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Consul__Host: "consul"
+      Consul__Port: "8500"
+      Consul__ServiceHost: "cinema-masternode"
+      Consul__ServicePort: "8080"
       MasterNode__PollingIntervalMs: 1000
       MasterNode__BatchSize: 1000
       MasterNode__ProcessorThreads: 4
@@ -406,7 +462,7 @@ services:
     networks:
       - cinema-network
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/", "||", "exit", "1"]
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -427,6 +483,63 @@ services:
     networks:
       - cinema-network
 
+  seq:
+    image: datalust/seq:latest
+    container_name: cinema-seq
+    environment:
+      ACCEPT_EULA: "Y"
+      # Seq refuses to start without either an admin password or an explicit
+      # opt-out; this stack is local-dev only, so opt out.
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    ports:
+      - "5341:80"   # Seq UI on http://localhost:5341
+    volumes:
+      - seq-data:/data
+    networks:
+      - cinema-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: cinema-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cinema-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - cinema-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: cinema-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC  (what the services export to)
+      - "4318:4318"     # OTLP HTTP
+    networks:
+      - cinema-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cinema-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - cinema-network
+
 networks:
   cinema-network:
     driver: bridge
@@ -441,3 +554,5 @@ volumes:
   zookeeper-data:
   zookeeper-logs:
   consul-data:
+  seq-data:
+  prometheus-data:

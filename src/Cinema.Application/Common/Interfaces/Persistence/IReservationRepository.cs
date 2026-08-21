@@ -4,9 +4,6 @@ using Cinema.Domain.ShowtimeAggregate.ValueObjects;
 
 namespace Cinema.Application.Common.Interfaces.Persistence;
 
-
-
-
 public interface IReservationRepository
 {
     Task<Reservation?> GetByIdAsync(ReservationId id, CancellationToken cancellationToken = default);

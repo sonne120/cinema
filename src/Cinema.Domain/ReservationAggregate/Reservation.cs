@@ -5,10 +5,6 @@ using Cinema.Domain.ShowtimeAggregate.ValueObjects;
 
 namespace Cinema.Domain.ReservationAggregate;
 
-
-
-
-
 public sealed class Reservation : AggregateRoot<ReservationId>
 {
     private const int ReservationExpirationMinutes = 10;
@@ -36,9 +32,6 @@ public sealed class Reservation : AggregateRoot<ReservationId>
         ExpiresAt = createdAt.AddMinutes(ReservationExpirationMinutes);
     }
 
-    
-    
-    
     public static Reservation Create(
         ShowtimeId showtimeId,
         List<SeatNumber> seats,
@@ -62,9 +55,6 @@ public sealed class Reservation : AggregateRoot<ReservationId>
         return reservation;
     }
 
-    
-    
-    
     public void Confirm()
     {
         if (!Status.IsPending)
@@ -82,9 +72,6 @@ public sealed class Reservation : AggregateRoot<ReservationId>
             DateTime.UtcNow));
     }
 
-    
-    
-    
     public void Expire()
     {
         if (!Status.IsPending)
@@ -98,9 +85,6 @@ public sealed class Reservation : AggregateRoot<ReservationId>
             DateTime.UtcNow));
     }
 
-    
-    
-    
     public void Cancel(string reason)
     {
         if (Status.IsConfirmed)
@@ -118,28 +102,20 @@ public sealed class Reservation : AggregateRoot<ReservationId>
             DateTime.UtcNow));
     }
 
-    
-    
-    
     public bool HasExpired()
     {
         return DateTime.UtcNow > ExpiresAt && Status.IsPending;
     }
 
-    
-    
-    
     private static void ValidateSeats(List<SeatNumber> seats)
     {
         if (seats == null || seats.Count == 0)
             throw new ArgumentException("Reservation must have at least one seat", nameof(seats));
 
-        
         var firstRow = seats[0].Row;
         if (seats.Any(s => s.Row != firstRow))
             throw new ArgumentException("All seats must be in the same row", nameof(seats));
 
-        
         var sortedSeats = seats.OrderBy(s => s.Number).ToList();
         for (int i = 0; i < sortedSeats.Count - 1; i++)
         {

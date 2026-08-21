@@ -30,9 +30,9 @@ public class IssueTicketStep : ISagaStep<TicketPurchaseSagaState>
     public int StepOrder => 4;
 
     public IssueTicketStep(
-        ITicketRepository ticketRepository, 
+        ITicketRepository ticketRepository,
         IAuditoriumService auditoriumService,
-        INotificationService notificationService, 
+        INotificationService notificationService,
         ILogger<IssueTicketStep> logger)
     {
         _ticketRepository = ticketRepository;
@@ -56,17 +56,17 @@ public class IssueTicketStep : ISagaStep<TicketPurchaseSagaState>
                 .ToList();
 
             var ticketResult = Ticket.Create(
-                state.ReservationId.Value, 
+                state.ReservationId.Value,
                 state.PaymentId.Value,
-                state.ShowtimeId, 
-                state.CustomerId, 
-                state.MovieTitle, 
+                state.ShowtimeId,
+                state.CustomerId,
+                state.MovieTitle,
                 state.ScreeningTime,
-                state.AuditoriumName, 
-                ticketSeats, 
+                state.AuditoriumName,
+                ticketSeats,
                 Money.Create(state.TotalPrice));
 
-            if (ticketResult.IsFailure) 
+            if (ticketResult.IsFailure)
                 return StepResult.Failure(ticketResult.Error);
 
             var ticket = ticketResult.Value;
@@ -91,7 +91,7 @@ public class IssueTicketStep : ISagaStep<TicketPurchaseSagaState>
         _logger.LogInformation("Saga {SagaId}: Compensating {StepName}", state.SagaId, StepName);
         try
         {
-            if (!state.TicketId.HasValue) 
+            if (!state.TicketId.HasValue)
                 return StepResult.Success("No ticket to cancel");
 
             var ticketId = TicketId.Create(state.TicketId.Value);

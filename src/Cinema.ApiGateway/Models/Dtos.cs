@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Cinema.ApiGateway.Models
 {
-    
     public class CreateShowtimeRequestDto
     {
         [JsonPropertyName("movieImdbId")]
@@ -42,7 +41,6 @@ namespace Cinema.ApiGateway.Models
         public string Status { get; set; } = string.Empty;
     }
 
-    
     public class MovieDto
     {
         public string ImdbId { get; set; } = string.Empty;

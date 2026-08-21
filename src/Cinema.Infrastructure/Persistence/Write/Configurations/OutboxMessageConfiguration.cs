@@ -4,9 +4,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Cinema.Infrastructure.Persistence.Write.Configurations;
 
-
-
-
 public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
 {
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)
@@ -29,7 +26,6 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 
         builder.Property(o => o.Error);
 
-        
         builder.HasIndex(o => o.ProcessedOnUtc);
     }
 }

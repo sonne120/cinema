@@ -29,7 +29,6 @@ public interface ISagaState
     string? SerializedData { get; set; }
 }
 
-
 public abstract class SagaState : ISagaState
 {
     public Guid SagaId { get; protected set; } = Guid.NewGuid();
@@ -50,7 +49,6 @@ public abstract class SagaState : ISagaState
                                Status == SagaStatus.Compensated ||
                                Status == SagaStatus.Failed;
 }
-
 
 public class SagaResult
 {
@@ -102,7 +100,6 @@ public class StepResult
     public static StepResult Failure(string error) => new(false, error, string.Empty);
 }
 
-
 public interface ISagaStep<TState> where TState : ISagaState
 {
     string StepName { get; }
@@ -121,7 +118,6 @@ public interface ISaga<TState, TCommand, TResult>
     Task<SagaResult> CompensateAsync(TState state, CancellationToken ct);
 }
 
-
 public interface ISagaStateRepository
 {
     Task<TState?> GetByIdAsync<TState>(Guid sagaId, CancellationToken ct = default) where TState : class, ISagaState;
@@ -130,5 +126,3 @@ public interface ISagaStateRepository
     Task SaveAsync<TState>(TState state, CancellationToken ct = default) where TState : class, ISagaState;
     Task UpdateAsync<TState>(TState state, CancellationToken ct = default) where TState : class, ISagaState;
 }
-
-

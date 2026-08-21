@@ -3,9 +3,6 @@ using Cinema.Domain.ShowtimeAggregate.ValueObjects;
 
 namespace Cinema.Domain.ShowtimeAggregate.Events;
 
-
-
-
 public sealed record ShowtimeCreatedEvent(
     ShowtimeId ShowtimeId,
     MovieDetails MovieDetails,

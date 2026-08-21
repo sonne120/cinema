@@ -13,7 +13,7 @@ public class ShowtimeIntegrationTests
 
     public ShowtimeIntegrationTests(CinemaWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateAuthenticatedClient();
     }
 
     [Fact]

@@ -56,7 +56,7 @@ namespace Cinema.ApiGateway.Controllers
 
                 // 3. Pass auth metadata
                 var response = await _writeClient.CreateShowtimeAsync(grpcRequest, await GetAuthHeaders());
-                
+
                 return Ok(new CreateShowtimeResponseDto
                 {
                     Id = response.Id,
@@ -108,7 +108,7 @@ namespace Cinema.ApiGateway.Controllers
             {
                 var request = new GetShowtimeRequest { Id = id };
                 var response = await _readClient.GetShowtimeAsync(request);
-                
+
                 return Ok(MapShowtime(response));
             }
             catch (RpcException ex)
@@ -124,8 +124,8 @@ namespace Cinema.ApiGateway.Controllers
         {
             try
             {
-                var request = new ListShowtimesRequest 
-                { 
+                var request = new ListShowtimesRequest
+                {
                     DateFilter = date ?? "",
                     PageNumber = page,
                     PageSize = pageSize
@@ -153,7 +153,7 @@ namespace Cinema.ApiGateway.Controllers
             {
                 var request = new GetReservationRequest { Id = id };
                 var response = await _readClient.GetReservationAsync(request);
-                
+
                 return Ok(new ReservationDto
                 {
                     Id = response.Id,

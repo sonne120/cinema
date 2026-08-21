@@ -13,8 +13,7 @@ using Cinema.Domain.UserAggregate;
 using Cinema.Infrastructure.Authentication;
 using Cinema.Infrastructure.BackgroundJobs;
 using Cinema.Infrastructure.Messaging;
-using Cinema.Infrastructure.Persistence.Read;
-using Cinema.Infrastructure.Persistence.Read.Repositories;
+using Cinema.Persistence.Read;
 using Cinema.Infrastructure.Persistence.Write;
 using Cinema.Infrastructure.Persistence.Write.Interceptors;
 using Cinema.Infrastructure.Services;
@@ -61,20 +60,18 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        
         services.AddSingleton<PublishDomainEventsInterceptor>();
 
         services.AddDbContext<CinemaDbContext>((sp, options) =>
         {
             var interceptor = sp.GetRequiredService<PublishDomainEventsInterceptor>();
-            
+
             options.UseSqlServer(
                 configuration.GetConnectionString("SqlServer"),
                 b => b.MigrationsAssembly(typeof(CinemaDbContext).Assembly.FullName))
                 .AddInterceptors(interceptor);
         });
 
-        
         services.AddScoped<IShowtimeRepository, ShowtimeRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
@@ -94,20 +91,10 @@ public static class DependencyInjection
         services.AddScoped<IAuditoriumService, AuditoriumService>();
         services.AddScoped<INotificationService, MockNotificationService>();
 
-        
-        services.Configure<MongoDbSettings>(
-            configuration.GetSection(nameof(MongoDbSettings)));
+        services.AddMongoReadPersistence(configuration);
 
-        services.AddSingleton<MongoDbContext>();
-
-        
-        services.AddScoped<IShowtimeReadRepository, ShowtimeReadRepository>();
-        services.AddScoped<IReservationReadRepository, ReservationReadRepository>();
-
-        
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
-        
         services.AddScoped<IMovieApiService, MovieApiService>();
 
         return services;
@@ -117,12 +104,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        
         services.Configure<KafkaSettings>(
             configuration.GetSection(nameof(KafkaSettings)));
 
         services.AddSingleton<IEventBus, KafkaEventBus>();
-        
 
         return services;
     }
@@ -130,7 +115,6 @@ public static class DependencyInjection
     private static IServiceCollection AddBackgroundJobs(
         this IServiceCollection services)
     {
-        
         services.AddQuartz(configure =>
         {
             var processOutboxJobKey = new JobKey(nameof(ProcessOutboxMessagesJob));

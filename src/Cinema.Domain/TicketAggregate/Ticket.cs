@@ -54,7 +54,6 @@ public sealed class Ticket : AggregateRoot<TicketId>
         QrCode = GenerateQrCode();
     }
 
-
     public static Result<Ticket> Create(
         Guid reservationId,
         Guid paymentId,
@@ -143,7 +142,6 @@ public sealed class Ticket : AggregateRoot<TicketId>
         return Status == TicketStatus.Issued && DateTime.UtcNow < ScreeningTime.AddHours(-1);
     }
 
- 
     public Result<bool> Validate()
     {
         if (Status != TicketStatus.Issued)

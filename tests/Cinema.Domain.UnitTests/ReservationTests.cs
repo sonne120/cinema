@@ -11,7 +11,6 @@ public class ReservationTests
     [Fact]
     public void Create_WithValidSeats_ShouldCreateReservation()
     {
-        
         var showtimeId = ShowtimeId.CreateUnique();
         var seats = new List<SeatNumber>
         {
@@ -21,10 +20,8 @@ public class ReservationTests
         };
         var createdAt = DateTime.UtcNow;
 
-        
         var reservation = Reservation.Create(showtimeId, seats, createdAt);
 
-        
         reservation.Should().NotBeNull();
         reservation.ShowtimeId.Should().Be(showtimeId);
         reservation.Seats.Should().HaveCount(3);
@@ -36,18 +33,15 @@ public class ReservationTests
     [Fact]
     public void Create_WithNonContiguousSeats_ShouldThrowException()
     {
-        
         var showtimeId = ShowtimeId.CreateUnique();
         var seats = new List<SeatNumber>
         {
             SeatNumber.Create(5, 10),
-            SeatNumber.Create(5, 12) 
+            SeatNumber.Create(5, 12)
         };
 
-        
         var act = () => Reservation.Create(showtimeId, seats, DateTime.UtcNow);
 
-        
         act.Should().Throw<ArgumentException>()
             .WithMessage("*contiguous*");
     }
@@ -55,18 +49,15 @@ public class ReservationTests
     [Fact]
     public void Create_WithDifferentRows_ShouldThrowException()
     {
-        
         var showtimeId = ShowtimeId.CreateUnique();
         var seats = new List<SeatNumber>
         {
             SeatNumber.Create(5, 10),
-            SeatNumber.Create(6, 11) 
+            SeatNumber.Create(6, 11)
         };
 
-        
         var act = () => Reservation.Create(showtimeId, seats, DateTime.UtcNow);
 
-        
         act.Should().Throw<ArgumentException>()
             .WithMessage("*same row*");
     }
@@ -74,13 +65,10 @@ public class ReservationTests
     [Fact]
     public void Confirm_WithPendingReservation_ShouldConfirmSuccessfully()
     {
-        
         var reservation = CreateValidReservation();
 
-        
         reservation.Confirm();
 
-        
         reservation.Status.Should().Be(ReservationStatus.Confirmed);
         reservation.ConfirmedAt.Should().NotBeNull();
         reservation.ConfirmedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
@@ -89,14 +77,11 @@ public class ReservationTests
     [Fact]
     public void Confirm_WithExpiredReservation_ShouldThrowException()
     {
-        
-        var createdAt = DateTime.UtcNow.AddMinutes(-15); 
+        var createdAt = DateTime.UtcNow.AddMinutes(-15);
         var reservation = CreateValidReservation(createdAt);
 
-        
         var act = () => reservation.Confirm();
 
-        
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*expired*");
     }
@@ -104,40 +89,31 @@ public class ReservationTests
     [Fact]
     public void Expire_WithPendingReservation_ShouldExpireSuccessfully()
     {
-        
         var reservation = CreateValidReservation();
 
-        
         reservation.Expire();
 
-        
         reservation.Status.Should().Be(ReservationStatus.Expired);
     }
 
     [Fact]
     public void Cancel_WithPendingReservation_ShouldCancelSuccessfully()
     {
-        
         var reservation = CreateValidReservation();
 
-        
         reservation.Cancel("Customer requested cancellation");
 
-        
         reservation.Status.Should().Be(ReservationStatus.Cancelled);
     }
 
     [Fact]
     public void Cancel_WithConfirmedReservation_ShouldThrowException()
     {
-        
         var reservation = CreateValidReservation();
         reservation.Confirm();
 
-        
         var act = () => reservation.Cancel("Test");
 
-        
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*confirmed*");
     }
@@ -145,31 +121,24 @@ public class ReservationTests
     [Fact]
     public void HasExpired_WithRecentReservation_ShouldReturnFalse()
     {
-        
         var reservation = CreateValidReservation();
 
-        
         var hasExpired = reservation.HasExpired();
 
-        
         hasExpired.Should().BeFalse();
     }
 
     [Fact]
     public void HasExpired_WithOldReservation_ShouldReturnTrue()
     {
-        
         var createdAt = DateTime.UtcNow.AddMinutes(-15);
         var reservation = CreateValidReservation(createdAt);
 
-        
         var hasExpired = reservation.HasExpired();
 
-        
         hasExpired.Should().BeTrue();
     }
 
-    
     private static Reservation CreateValidReservation(DateTime? createdAt = null)
     {
         var showtimeId = ShowtimeId.CreateUnique();

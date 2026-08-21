@@ -63,7 +63,6 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
                 .HasMaxLength(3);
         });
 
-
         builder.Ignore(p => p.DomainEvents);
     }
 }

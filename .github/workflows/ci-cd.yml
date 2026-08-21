@@ -50,6 +50,8 @@ jobs:
       run: |
         dotnet test tests/Cinema.Domain.UnitTests/Cinema.Domain.UnitTests.csproj --configuration Release --no-restore --verbosity normal --logger trx --results-directory TestResults
         dotnet test tests/Cinema.Application.UnitTests/Cinema.Application.UnitTests.csproj --configuration Release --no-restore --verbosity normal --logger trx --results-directory TestResults
+        dotnet test tests/Cinema.Infrastructure.UnitTests/Cinema.Infrastructure.UnitTests.csproj --configuration Release --no-restore --verbosity normal --logger trx --results-directory TestResults
+        dotnet test tests/Cinema.MasterNode.UnitTests/Cinema.MasterNode.UnitTests.csproj --configuration Release --no-restore --verbosity normal --logger trx --results-directory TestResults
 
     - name: Upload Test Results
       uses: actions/upload-artifact@v4

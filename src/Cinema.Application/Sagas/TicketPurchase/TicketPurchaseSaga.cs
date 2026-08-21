@@ -18,11 +18,11 @@ public class TicketPurchaseSaga : ISaga<TicketPurchaseSagaState, PurchaseTicketC
     public string SagaName => "TicketPurchaseSaga";
 
     public TicketPurchaseSaga(
-        ISagaStateRepository stateRepository, 
+        ISagaStateRepository stateRepository,
         IEventBus eventBus,
-        ReserveSeatsStep reserveSeatsStep, 
+        ReserveSeatsStep reserveSeatsStep,
         ProcessPaymentStep processPaymentStep,
-        ConfirmReservationStep confirmReservationStep, 
+        ConfirmReservationStep confirmReservationStep,
         IssueTicketStep issueTicketStep,
         ILogger<TicketPurchaseSaga> logger)
     {
@@ -35,9 +35,9 @@ public class TicketPurchaseSaga : ISaga<TicketPurchaseSagaState, PurchaseTicketC
         _logger = logger;
         _steps = new List<ISagaStep<TicketPurchaseSagaState>>
         {
-            _reserveSeatsStep, 
-            _processPaymentStep, 
-            _confirmReservationStep, 
+            _reserveSeatsStep,
+            _processPaymentStep,
+            _confirmReservationStep,
             _issueTicketStep
         };
     }
@@ -104,13 +104,13 @@ public class TicketPurchaseSaga : ISaga<TicketPurchaseSagaState, PurchaseTicketC
             state.ReservationId!.Value, state.PaymentId!.Value), ct);
 
         var result = new PurchaseTicketResult(
-            state.TicketId!.Value, 
-            state.TicketNumber!, 
+            state.TicketId!.Value,
+            state.TicketNumber!,
             state.ReservationId!.Value,
-            state.PaymentId!.Value, 
-            state.MovieTitle, 
+            state.PaymentId!.Value,
+            state.MovieTitle,
             state.ScreeningTime,
-            state.Seats, 
+            state.Seats,
             state.TotalPrice);
 
         return SagaResult<PurchaseTicketResult>.Success(result, state);

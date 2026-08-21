@@ -66,7 +66,6 @@ public class OutboxProcessor : IOutboxProcessor
             _logger.LogWarning("No CinemaApi connection strings found. Polling disabled.");
         }
 
-
         var processors = Enumerable.Range(0, options.ProcessorThreads)
             .Select(i => ProcessBatchesAsync(i, cancellationToken))
             .ToArray();
@@ -115,7 +114,6 @@ public class OutboxProcessor : IOutboxProcessor
         CancellationToken cancellationToken)
     {
         var options = _config.GetSection("MasterNode").Get<MasterNodeOptions>() ?? new MasterNodeOptions();
-
 
         var sql = @"
             WITH TargetMessages AS (
@@ -219,7 +217,6 @@ public class OutboxProcessor : IOutboxProcessor
 
         try
         {
-
             if (eventType.Contains("ReservationCreated"))
             {
                 var reservationEvent = JsonSerializer.Deserialize<ReservationCreatedIntegrationEvent>(message.Content);

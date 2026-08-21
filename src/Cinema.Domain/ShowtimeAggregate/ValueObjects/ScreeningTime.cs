@@ -2,9 +2,6 @@ using Cinema.Domain.Common.Models;
 
 namespace Cinema.Domain.ShowtimeAggregate.ValueObjects;
 
-
-
-
 public sealed class ScreeningTime : ValueObject
 {
     public DateTime Value { get; private set; }
@@ -16,7 +13,6 @@ public sealed class ScreeningTime : ValueObject
 
     public static ScreeningTime Create(DateTime value)
     {
-        
         if (value <= DateTime.UtcNow)
             throw new ArgumentException("Screening time must be in the future", nameof(value));
 
@@ -25,7 +21,6 @@ public sealed class ScreeningTime : ValueObject
 
     public static ScreeningTime CreateForTesting(DateTime value)
     {
-        
         return new ScreeningTime(value);
     }
 

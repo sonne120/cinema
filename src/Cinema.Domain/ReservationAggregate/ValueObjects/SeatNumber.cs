@@ -2,9 +2,6 @@ using Cinema.Domain.Common.Models;
 
 namespace Cinema.Domain.ReservationAggregate.ValueObjects;
 
-
-
-
 public sealed class SeatNumber : ValueObject
 {
     public int Row { get; private set; }
@@ -27,9 +24,6 @@ public sealed class SeatNumber : ValueObject
         return new SeatNumber(row, number);
     }
 
-    
-    
-    
     public bool IsContiguousWith(SeatNumber other)
     {
         return Row == other.Row && Math.Abs(Number - other.Number) == 1;

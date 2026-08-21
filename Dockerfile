@@ -3,9 +3,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy project files (no solution file needed)
+# Central package/build settings — must be present before restore
+COPY Directory.Build.props Directory.Packages.props ./
 COPY src/Cinema.Domain/Cinema.Domain.csproj src/Cinema.Domain/
 COPY src/Cinema.Application/Cinema.Application.csproj src/Cinema.Application/
 COPY src/Cinema.Contracts/Cinema.Contracts.csproj src/Cinema.Contracts/
+COPY src/Cinema.Persistence.Read/Cinema.Persistence.Read.csproj src/Cinema.Persistence.Read/
+COPY src/Cinema.ServiceDiscovery/Cinema.ServiceDiscovery.csproj src/Cinema.ServiceDiscovery/
 COPY src/Cinema.Infrastructure/Cinema.Infrastructure.csproj src/Cinema.Infrastructure/
 COPY src/Cinema.Api/Cinema.Api.csproj src/Cinema.Api/
 
@@ -27,6 +31,11 @@ RUN dotnet publish Cinema.Api.csproj -c Release -o /app/publish /p:UseAppHost=fa
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
+
+# curl is not present in the aspnet runtime image; HEALTHCHECK below needs it
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy published files
 COPY --from=publish /app/publish .

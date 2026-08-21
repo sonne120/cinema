@@ -55,7 +55,7 @@ public class KafkaEventBus : IEventBus
         try
         {
             var result = await _producer.ProduceAsync(topic, message, cancellationToken);
-            
+
             _logger.LogInformation(
                 "Published event {EventType} to Kafka topic {Topic} at offset {Offset}",
                 eventType,
@@ -69,21 +69,12 @@ public class KafkaEventBus : IEventBus
         }
     }
 
-    public async Task PublishBatchAsync<T>(IEnumerable<T> events, CancellationToken cancellationToken = default) where T : IDomainEvent
-    {
-        var tasks = events.Select(e => PublishAsync(e, cancellationToken));
-        await Task.WhenAll(tasks);
-    }
-
     public async Task PublishAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken = default)
     {
         var tasks = events.Select(e => PublishAsync(e, cancellationToken));
         await Task.WhenAll(tasks);
     }
 }
-
-
-
 
 public class KafkaSettings
 {

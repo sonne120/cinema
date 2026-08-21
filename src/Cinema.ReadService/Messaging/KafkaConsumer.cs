@@ -1,16 +1,14 @@
-using System.Reflection;
+using Cinema.Application.Common.Interfaces.Queries;
+using Cinema.Application.Common.Models;
 using Cinema.Domain.Common.Models;
 using Cinema.Domain.ReservationAggregate.Events;
 using Cinema.Domain.ShowtimeAggregate.Events;
-using Cinema.ReadService.Models;
-using Cinema.ReadService.Persistence;
 using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 namespace Cinema.ReadService.Messaging;
 
@@ -199,23 +197,5 @@ public class KafkaConsumer : BackgroundService
             await repository.AddOrUpdateAsync(reservation, cancellationToken);
             _logger.LogInformation("Confirmed Reservation Read Model: {Id}", reservation.Id);
         }
-    }
-}
-
-public class PrivateSetterContractResolver : DefaultContractResolver
-{
-    protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
-    {
-        var prop = base.CreateProperty(member, memberSerialization);
-        if (!prop.Writable)
-        {
-            var property = member as PropertyInfo;
-            if (property != null)
-            {
-                var hasPrivateSetter = property.GetSetMethod(true) != null;
-                prop.Writable = hasPrivateSetter;
-            }
-        }
-        return prop;
     }
 }

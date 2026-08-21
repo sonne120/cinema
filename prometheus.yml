@@ -1,0 +1,34 @@
+# Prometheus scrape config for the docker-compose stack.
+# The k8s equivalent (k8s/observability.yaml) uses kubernetes_sd_configs; here the
+# targets are static container names on cinema-network.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'cinema-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['cinema-api-1:8080', 'cinema-api-2:8080']
+
+  - job_name: 'cinema-gateway'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['cinema-gateway:8080']
+
+  - job_name: 'cinema-loadbalancer'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['cinema-loadbalancer:80']
+
+  - job_name: 'cinema-masternode'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['cinema-masternode:8080']
+
+  # cinema-read-service is a worker host with no HTTP listener, so there is no
+  # /metrics endpoint to scrape. It pushes metrics over OTLP instead.

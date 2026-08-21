@@ -6,9 +6,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Cinema.Infrastructure.Persistence.Write.Configurations;
 
-
-
-
 public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
 {
     public void Configure(EntityTypeBuilder<Reservation> builder)
@@ -44,7 +41,6 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
 
         builder.Property(r => r.ConfirmedAt);
 
-        
         builder.Ignore(r => r.DomainEvents);
     }
 

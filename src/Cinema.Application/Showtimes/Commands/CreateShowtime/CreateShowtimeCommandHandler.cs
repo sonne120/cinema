@@ -6,9 +6,6 @@ using MediatR;
 
 namespace Cinema.Application.Showtimes.Commands.CreateShowtime;
 
-
-
-
 public class CreateShowtimeCommandHandler : IRequestHandler<CreateShowtimeCommand, Showtime>
 {
     private readonly IShowtimeRepository _showtimeRepository;
@@ -27,24 +24,19 @@ public class CreateShowtimeCommandHandler : IRequestHandler<CreateShowtimeComman
 
     public async Task<Showtime> Handle(CreateShowtimeCommand command, CancellationToken cancellationToken)
     {
-        
         var movieDetails = await _movieApiService.GetMovieByImdbIdAsync(
             command.MovieImdbId,
             cancellationToken);
 
-        
         var screeningTime = ScreeningTime.Create(command.ScreeningTime);
 
-        
         var showtime = Showtime.Create(
             movieDetails,
             screeningTime,
             command.AuditoriumId);
 
-        
         await _showtimeRepository.AddAsync(showtime, cancellationToken);
 
-        
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return showtime;

@@ -13,7 +13,7 @@ public class ReservationIntegrationTests
 
     public ReservationIntegrationTests(CinemaWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateAuthenticatedClient();
     }
 
     [Fact]
@@ -57,10 +57,11 @@ public class ReservationIntegrationTests
             }
         };
 
-        // API throws ArgumentException for invalid seats - this is expected behavior
-        var act = () => _client.PostAsJsonAsync("/api/reservations", request);
-        await act.Should().ThrowAsync<Exception>()
-            .WithMessage("*contiguous*");
+        var response = await _client.PostAsJsonAsync("/api/reservations", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("contiguous");
     }
 
     [Fact]
@@ -78,10 +79,11 @@ public class ReservationIntegrationTests
             }
         };
 
-        // API throws ArgumentException for seats in different rows - this is expected behavior
-        var act = () => _client.PostAsJsonAsync("/api/reservations", request);
-        await act.Should().ThrowAsync<Exception>()
-            .WithMessage("*same row*");
+        var response = await _client.PostAsJsonAsync("/api/reservations", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("same row");
     }
 
     [Fact]
@@ -130,9 +132,10 @@ public class ReservationIntegrationTests
         var response1 = await _client.PostAsJsonAsync("/api/reservations", request1);
         response1.EnsureSuccessStatusCode();
         var created1 = await response1.Content.ReadFromJsonAsync<ReservationResponseDto>();
-        await _client.PostAsync($"/api/reservations/{created1!.Id}/confirm", null);
+        var confirmResponse = await _client.PostAsync($"/api/reservations/{created1!.Id}/confirm", null);
+        confirmResponse.EnsureSuccessStatusCode();
 
-        // Try to create second reservation with same seats - should throw exception
+        // Same seats again: the first reservation is confirmed, so these are sold
         var request2 = new
         {
             showtimeId = showtimeId,
@@ -142,9 +145,11 @@ public class ReservationIntegrationTests
                 new { row = 8, number = 11 }
             }
         };
-        var act = () => _client.PostAsJsonAsync("/api/reservations", request2);
-        await act.Should().ThrowAsync<Exception>()
-            .WithMessage("*already sold*");
+        var response2 = await _client.PostAsJsonAsync("/api/reservations", request2);
+
+        response2.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var body = await response2.Content.ReadAsStringAsync();
+        body.Should().Contain("already sold");
     }
 
     private async Task<Guid> CreateShowtimeAsync()

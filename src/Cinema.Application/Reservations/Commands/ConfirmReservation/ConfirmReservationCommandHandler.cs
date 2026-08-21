@@ -5,9 +5,6 @@ using MediatR;
 
 namespace Cinema.Application.Reservations.Commands.ConfirmReservation;
 
-
-
-
 public class ConfirmReservationCommandHandler : IRequestHandler<ConfirmReservationCommand, Reservation>
 {
     private readonly IReservationRepository _reservationRepository;
@@ -23,20 +20,16 @@ public class ConfirmReservationCommandHandler : IRequestHandler<ConfirmReservati
 
     public async Task<Reservation> Handle(ConfirmReservationCommand command, CancellationToken cancellationToken)
     {
-        
         var reservationId = ReservationId.Create(command.ReservationId);
         var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken);
 
         if (reservation is null)
             throw new InvalidOperationException($"Reservation with ID {command.ReservationId} not found");
 
-        
         reservation.Confirm();
 
-        
         _reservationRepository.Update(reservation);
 
-        
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return reservation;

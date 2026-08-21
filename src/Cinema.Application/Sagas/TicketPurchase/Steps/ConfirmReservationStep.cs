@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Cinema.Application.Sagas.TicketPurchase.Steps;
 
-
 public class ConfirmReservationStep : ISagaStep<TicketPurchaseSagaState>
 {
     private readonly IReservationRepository _reservationRepository;

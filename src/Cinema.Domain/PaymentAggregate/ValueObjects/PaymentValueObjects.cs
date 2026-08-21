@@ -4,7 +4,7 @@ public readonly record struct PaymentId(Guid Value)
 {
     public static PaymentId CreateUnique() => new(Guid.NewGuid());
     public static PaymentId Create(Guid value) => new(value);
-    
+
     public static implicit operator Guid(PaymentId id) => id.Value;
 }
 

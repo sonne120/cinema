@@ -38,7 +38,6 @@ public class CreateReservationCommandHandlerTests
     [Fact]
     public async Task Handle_WithValidCommand_ShouldCreateReservation()
     {
-        
         var showtimeId = Guid.NewGuid();
         var showtime = CreateShowtime(showtimeId);
 
@@ -58,10 +57,8 @@ public class CreateReservationCommandHandlerTests
                 new(5, 11)
             });
 
-        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        
         result.Should().NotBeNull();
         result.Seats.Should().HaveCount(2);
         result.Status.Should().Be(ReservationStatus.Pending);
@@ -78,7 +75,6 @@ public class CreateReservationCommandHandlerTests
     [Fact]
     public async Task Handle_WithNonExistentShowtime_ShouldThrowException()
     {
-        
         _showtimeRepositoryMock
             .Setup(x => x.GetByIdAsync(It.IsAny<ShowtimeId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Showtime?)null);
@@ -87,10 +83,8 @@ public class CreateReservationCommandHandlerTests
             Guid.NewGuid(),
             new List<SeatRequest> { new(5, 10) });
 
-        
         var act = () => _handler.Handle(command, CancellationToken.None);
 
-        
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*not found*");
     }
@@ -98,7 +92,6 @@ public class CreateReservationCommandHandlerTests
     [Fact]
     public async Task Handle_WithAlreadySoldSeats_ShouldThrowException()
     {
-        
         var showtimeId = Guid.NewGuid();
         var showtime = CreateShowtime(showtimeId);
 
@@ -116,19 +109,16 @@ public class CreateReservationCommandHandlerTests
             showtimeId,
             new List<SeatRequest>
             {
-                new(5, 10), 
+                new(5, 10),
                 new(5, 11)
             });
 
-        
         var act = () => _handler.Handle(command, CancellationToken.None);
 
-        
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already sold*");
     }
 
-    
     private static Showtime CreateShowtime(Guid showtimeId)
     {
         var movieDetails = MovieDetails.Create("tt0111161", "The Shawshank Redemption");
@@ -136,8 +126,7 @@ public class CreateReservationCommandHandlerTests
         var auditoriumId = Guid.NewGuid();
 
         var showtime = Showtime.Create(movieDetails, screeningTime, auditoriumId);
-        
-        
+
         var idProperty = typeof(Showtime).BaseType!.GetProperty("Id")!;
         idProperty.SetValue(showtime, ShowtimeId.Create(showtimeId));
 

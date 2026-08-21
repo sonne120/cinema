@@ -5,6 +5,9 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
+# Central package/build settings — must be present before restore
+COPY Directory.Build.props Directory.Packages.props ./
+COPY ["src/Cinema.ServiceDiscovery/Cinema.ServiceDiscovery.csproj", "src/Cinema.ServiceDiscovery/"]
 COPY ["src/Cinema.LoadBalancer/Cinema.LoadBalancer.csproj", "src/Cinema.LoadBalancer/"]
 RUN dotnet restore "src/Cinema.LoadBalancer/Cinema.LoadBalancer.csproj"
 COPY . .

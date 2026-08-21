@@ -8,7 +8,7 @@ namespace Cinema.Infrastructure.Persistence.Write.Repositories;
 public class AuditoriumRepository : IAuditoriumRepository
 {
     private readonly CinemaDbContext _context;
-    
+
     public AuditoriumRepository(CinemaDbContext context) => _context = context;
 
     public async Task<Auditorium?> GetByIdAsync(AuditoriumId id, CancellationToken ct = default)

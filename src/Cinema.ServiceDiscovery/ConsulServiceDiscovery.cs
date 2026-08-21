@@ -1,7 +1,7 @@
 using Consul;
 using Microsoft.Extensions.Logging;
 
-namespace Cinema.Infrastructure.ServiceDiscovery;
+namespace Cinema.ServiceDiscovery;
 
 public interface IServiceDiscovery
 {

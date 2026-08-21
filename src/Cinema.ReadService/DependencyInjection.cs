@@ -1,5 +1,5 @@
 using Cinema.ReadService.Messaging;
-using Cinema.ReadService.Persistence;
+using Cinema.Persistence.Read;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,15 +11,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<MongoDbSettings>(
-            configuration.GetSection("MongoDB"));
-        services.AddSingleton<MongoDbContext>();
-
-        services.AddScoped<IShowtimeReadRepository, ShowtimeReadRepository>();
-        services.AddScoped<IReservationReadRepository, ReservationReadRepository>();
+        services.AddMongoReadPersistence(configuration);
 
         services.Configure<KafkaSettings>(
-            configuration.GetSection("Kafka"));
+            configuration.GetSection(KafkaSettings.SectionName));
         services.AddHostedService<KafkaConsumer>();
 
         return services;

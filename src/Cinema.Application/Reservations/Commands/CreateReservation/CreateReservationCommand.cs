@@ -4,9 +4,6 @@ using MediatR;
 
 namespace Cinema.Application.Reservations.Commands.CreateReservation;
 
-
-
-
 public record CreateReservationCommand(
     Guid ShowtimeId,
     List<SeatRequest> Seats) : IRequest<Reservation>;

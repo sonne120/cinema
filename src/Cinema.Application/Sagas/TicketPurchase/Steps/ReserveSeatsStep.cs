@@ -50,7 +50,7 @@ public class ReserveSeatsStep : ISagaStep<TicketPurchaseSagaState>
             var reservationSeats = state.Seats
                 .Select(s => Cinema.Domain.ReservationAggregate.ValueObjects.SeatNumber.Create(s.Row, s.Number))
                 .ToList();
-            
+
             var reservation = Reservation.Create(
                 showtimeId,
                 reservationSeats,

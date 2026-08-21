@@ -1,5 +1,8 @@
+using System.Net.Http.Headers;
+using Cinema.Application.Common.Interfaces.Authentication;
 using Cinema.Application.Common.Interfaces.Messaging;
 using Cinema.Domain.Common.Models;
+using Cinema.Domain.UserAggregate;
 using Cinema.Infrastructure.Persistence.Write;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -74,6 +77,39 @@ public class CinemaWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
     }
 
+    /// <summary>
+    /// A client carrying a real, signed JWT for a user in the given role. Most endpoints
+    /// are behind [Authorize], and creating a showtime additionally requires ManagerOrAdmin.
+    /// </summary>
+    public HttpClient CreateAuthenticatedClient(UserRole role = UserRole.Admin)
+    {
+        var client = CreateClient();
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessTokenFor(role));
+
+        return client;
+    }
+
+    /// <summary>
+    /// Issues a token through the API's own token generator, so the claims and signing
+    /// match exactly what the running application validates.
+    /// </summary>
+    public string CreateAccessTokenFor(UserRole role = UserRole.Admin)
+    {
+        using var scope = Services.CreateScope();
+        var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+
+        var user = User.Create(
+            email: $"{role}-{Guid.NewGuid():N}@cinema.test".ToLowerInvariant(),
+            passwordHash: "integration-tests-do-not-log-in",
+            firstName: "Integration",
+            lastName: "Test",
+            role: role).Value;
+
+        return authService.GenerateAccessToken(user);
+    }
+
     protected override IHost CreateHost(IHostBuilder builder)
     {
         builder.ConfigureServices(services =>
@@ -93,7 +129,7 @@ public class InMemoryEventBus : IEventBus
 
     public IReadOnlyList<IDomainEvent> PublishedEvents => _publishedEvents.AsReadOnly();
 
-    public Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default) 
+    public Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default)
         where TEvent : IDomainEvent
     {
         _publishedEvents.Add(@event);
@@ -106,4 +142,3 @@ public class InMemoryEventBus : IEventBus
         return Task.CompletedTask;
     }
 }
-

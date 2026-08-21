@@ -40,7 +40,6 @@ public sealed class Auditorium : AggregateRoot<AuditoriumId>
         return Result.Success(new Auditorium(auditoriumId, name, rows, seatsPerRow));
     }
 
-
     public IEnumerable<SeatNumber> GetAllSeats()
     {
         for (short row = 1; row <= Rows; row++)

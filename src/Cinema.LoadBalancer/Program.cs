@@ -6,6 +6,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
 using Yarp.ReverseProxy.Configuration;
+using Cinema.ServiceDiscovery;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -20,20 +21,19 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(80, o => o.Protocols = HttpProtocols.Http1AndHttp2);
 });
 
-var consulHost = builder.Configuration["Consul:Host"] ?? "consul-server"; // Default to K8s service name if exists
-var consulPort = int.Parse(builder.Configuration["Consul:Port"] ?? "8500");
-
-// Registration of Consul Client
-builder.Services.AddSingleton<IConsulClient>(_ => new ConsulClient(config =>
-{
-    config.Address = new Uri($"http://{consulHost}:{consulPort}");
-}));
+// Registers this instance AND supplies the IConsulClient that the YARP config
+// provider below polls with, so there is a single Consul client in the container.
+builder.Services.AddConsulServiceRegistration(
+    builder.Configuration,
+    serviceName: "cinema-loadbalancer",
+    serviceHost: builder.Configuration["Consul:ServiceHost"] ?? "localhost",
+    servicePort: int.Parse(builder.Configuration["Consul:ServicePort"] ?? "80"),
+    tags: new[] { "loadbalancer", "cinema", "dotnet", "edge" });
 
 // YARP Config Provider that polls Consul
 builder.Services.AddSingleton<IProxyConfigProvider, ConsulProxyConfigProvider>();

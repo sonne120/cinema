@@ -2,9 +2,6 @@ using Cinema.Domain.Common.Models;
 
 namespace Cinema.Domain.ShowtimeAggregate.ValueObjects;
 
-
-
-
 public sealed class ShowtimeId : ValueObject
 {
     public Guid Value { get; private set; }

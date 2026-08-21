@@ -31,7 +31,6 @@ public class ProcessOutboxMessagesJob : IJob
     {
         _logger.LogInformation("Processing outbox messages...");
 
-        
         var messages = await _dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null)
             .OrderBy(m => m.OccurredOnUtc)
@@ -46,12 +45,10 @@ public class ProcessOutboxMessagesJob : IJob
 
         _logger.LogInformation("Found {Count} outbox messages to process", messages.Count);
 
-        
         foreach (var message in messages)
         {
             try
             {
-                
                 var domainEvent = JsonConvert.DeserializeObject<IDomainEvent>(
                     message.Content,
                     new JsonSerializerSettings
@@ -68,10 +65,8 @@ public class ProcessOutboxMessagesJob : IJob
                     continue;
                 }
 
-                
                 await _eventBus.PublishAsync(domainEvent, context.CancellationToken);
 
-                
                 message.ProcessedOnUtc = DateTime.UtcNow;
 
                 _logger.LogInformation(
@@ -88,11 +83,10 @@ public class ProcessOutboxMessagesJob : IJob
                     message.Type);
 
                 message.Error = ex.Message;
-                message.ProcessedOnUtc = DateTime.UtcNow; 
+                message.ProcessedOnUtc = DateTime.UtcNow;
             }
         }
 
-        
         await _dbContext.SaveChangesAsync(context.CancellationToken);
 
         _logger.LogInformation("Finished processing {Count} outbox messages", messages.Count);

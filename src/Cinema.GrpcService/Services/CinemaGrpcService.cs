@@ -4,9 +4,6 @@ using MediatR;
 
 namespace Cinema.GrpcService.Services;
 
-
-
-
 public class CinemaGrpcService : CinemaService.CinemaServiceBase
 {
     private readonly IMediator _mediator;

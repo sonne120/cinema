@@ -8,7 +8,7 @@ namespace Cinema.Infrastructure.Persistence.Write.Repositories;
 public class TicketRepository : ITicketRepository
 {
     private readonly CinemaDbContext _context;
-    
+
     public TicketRepository(CinemaDbContext context) => _context = context;
 
     public async Task<Ticket?> GetByIdAsync(TicketId id, CancellationToken ct = default)

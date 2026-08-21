@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Cinema.Domain.Common.Errors;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
@@ -47,7 +46,10 @@ public class GlobalExceptionMiddleware
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails, options));
+        // Serialize by runtime type: the declared type is ProblemDetails, and serializing
+        // as that would drop ValidationProblemDetails.Errors from every 400 response.
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(problemDetails, problemDetails.GetType(), options));
     }
 
     private ProblemDetails CreateProblemDetails(HttpContext context, Exception exception)

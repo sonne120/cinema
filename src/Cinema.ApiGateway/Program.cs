@@ -12,12 +12,13 @@ using OpenTelemetry.Trace;
 using Polly;
 using Polly.Extensions.Http;
 using Serilog;
+using Cinema.ServiceDiscovery;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===== OBSERVABILITY: Serilog =====
+// Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
@@ -34,7 +35,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 
-//-------OpenTelemetry -------
+// Register this gateway instance in Consul so the rest of the mesh can find it.
+builder.Services.AddConsulServiceRegistration(
+    builder.Configuration,
+    serviceName: "cinema-gateway",
+    serviceHost: builder.Configuration["Consul:ServiceHost"] ?? "localhost",
+    servicePort: int.Parse(builder.Configuration["Consul:ServicePort"] ?? "8080"),
+    tags: new[] { "gateway", "cinema", "dotnet", "edge" });
+
+// OpenTelemetry
 var serviceName = "Cinema.ApiGateway";
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource

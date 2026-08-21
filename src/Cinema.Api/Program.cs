@@ -6,7 +6,7 @@ using Cinema.Application;
 using Cinema.Infrastructure;
 using Cinema.Infrastructure.Authentication;
 using Cinema.Infrastructure.Persistence.Write;
-using Cinema.Infrastructure.ServiceDiscovery;
+using Cinema.ServiceDiscovery;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -33,7 +33,7 @@ builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddGrpc();
 
-// ----- OpenTelemetry------
+// OpenTelemetry
 var serviceName = "Cinema.Api";
 var serviceVersion = "1.0.0";
 
@@ -136,10 +136,9 @@ var servicePort = int.Parse(builder.Configuration["Consul:ServicePort"] ?? "8080
 builder.Services.AddConsulServiceRegistration(
     builder.Configuration,
     serviceName: "cinema-api",
-    serviceHost: serviceHost, // In K8s, this should be the POD IP
+    serviceHost: serviceHost, // In K8s,  POD IP
     servicePort: servicePort,
     tags: new[] { "api", "cinema", "dotnet", "write" });
-
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:3000", "http://localhost:5173", "http://cinema-gateway:8080" };
@@ -165,33 +164,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-    options.AddFixedWindowLimiter("fixed", opt =>
-    {
-        opt.PermitLimit = 100;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 5;
-    });
-
-    options.AddSlidingWindowLimiter("sliding", opt =>
-    {
-        opt.PermitLimit = 100;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.SegmentsPerWindow = 6;
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 5;
-    });
-
-    options.AddTokenBucketLimiter("token", opt =>
-    {
-        opt.TokenLimit = 100;
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 5;
-        opt.ReplenishmentPeriod = TimeSpan.FromSeconds(10);
-        opt.TokensPerPeriod = 20;
-        opt.AutoReplenishment = true;
-    });
 
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
@@ -262,8 +234,3 @@ using (var scope = app.Services.CreateScope())
 app.Run();
 
 public partial class Program { }
-
-namespace Cinema.Application
-{
-    public class AssemblyReference { }
-}

@@ -2,7 +2,7 @@ using Consul;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Cinema.Infrastructure.ServiceDiscovery;
+namespace Cinema.ServiceDiscovery;
 
 public static class ConsulExtensions
 {
@@ -31,7 +31,9 @@ public static class ConsulExtensions
         string serviceName,
         string serviceHost,
         int servicePort,
-        string[]? tags = null)
+        string[]? tags = null,
+        ConsulCheckType checkType = ConsulCheckType.Http,
+        string healthCheckPath = "/health")
     {
         services.Configure<ConsulSettings>(options =>
         {
@@ -42,6 +44,16 @@ public static class ConsulExtensions
             options.ServiceHost = serviceHost;
             options.ServicePort = servicePort;
             options.Tags = tags ?? new[] { "api", "dotnet" };
+            options.CheckType = checkType;
+            options.HealthCheckPath = healthCheckPath;
+
+            // A stable id keyed on the instance host means a restarting container
+            // replaces its own registration instead of leaving a critical orphan
+            // behind for DeregisterCriticalServiceAfter to reap.
+            if (string.IsNullOrEmpty(options.ServiceId))
+            {
+                options.ServiceId = $"{serviceName}-{serviceHost}";
+            }
         });
 
         var consulSettings = configuration.GetSection(ConsulSettings.SectionName).Get<ConsulSettings>()

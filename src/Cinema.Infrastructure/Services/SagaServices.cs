@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Cinema.Infrastructure.Services;
 
-
 public class MockPaymentGateway : IPaymentGateway
 {
     private readonly ILogger<MockPaymentGateway> _logger;
@@ -24,7 +23,7 @@ public class MockPaymentGateway : IPaymentGateway
         string? cardHolderName,
         CancellationToken ct)
     {
-        _logger.LogInformation("Processing payment of {Amount} {Currency} via {Method}", 
+        _logger.LogInformation("Processing payment of {Amount} {Currency} via {Method}",
             amount, currency, method);
 
         var transactionId = $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
@@ -43,7 +42,7 @@ public class MockPaymentGateway : IPaymentGateway
         string currency,
         CancellationToken ct)
     {
-        _logger.LogInformation("Refunding {Amount} {Currency} for transaction {TransactionId}", 
+        _logger.LogInformation("Refunding {Amount} {Currency} for transaction {TransactionId}",
             amount, currency, transactionId);
 
         var refundId = $"REF-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8]}";
@@ -80,32 +79,32 @@ public class MockNotificationService : INotificationService
     }
 
     public Task SendTicketEmailAsync(
-        Guid customerId, 
-        string ticketNumber, 
+        Guid customerId,
+        string ticketNumber,
         string movieTitle,
-        DateTime screeningTime, 
-        string seats, 
-        string qrCode, 
+        DateTime screeningTime,
+        string seats,
+        string qrCode,
         CancellationToken ct)
     {
         _logger.LogInformation(
             "Sending ticket email to customer {CustomerId}: Ticket {TicketNumber} for {MovieTitle} at {ScreeningTime}",
             customerId, ticketNumber, movieTitle, screeningTime);
-        
+
         return Task.CompletedTask;
     }
 
     public Task SendRefundNotificationAsync(
-        Guid customerId, 
+        Guid customerId,
         string ticketNumber,
-        decimal refundAmount, 
-        string reason, 
+        decimal refundAmount,
+        string reason,
         CancellationToken ct)
     {
         _logger.LogInformation(
             "Sending refund notification to customer {CustomerId}: {Amount} refunded for ticket {TicketNumber}",
             customerId, refundAmount, ticketNumber);
-        
+
         return Task.CompletedTask;
     }
 }

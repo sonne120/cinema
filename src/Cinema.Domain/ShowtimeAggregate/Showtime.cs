@@ -30,9 +30,6 @@ public sealed class Showtime : AggregateRoot<ShowtimeId>
         CreatedAt = DateTime.UtcNow;
     }
 
-    
-    
-    
     public static Showtime Create(
         MovieDetails movieDetails,
         ScreeningTime screeningTime,
@@ -54,9 +51,6 @@ public sealed class Showtime : AggregateRoot<ShowtimeId>
         return showtime;
     }
 
-    
-    
-    
     public void Cancel(string reason)
     {
         if (Status == ShowtimeStatus.Cancelled)
@@ -74,9 +68,6 @@ public sealed class Showtime : AggregateRoot<ShowtimeId>
             DateTime.UtcNow));
     }
 
-    
-    
-    
     public void ReserveSeats(IEnumerable<Guid> seatIds)
     {
         if (Status != ShowtimeStatus.Scheduled)
@@ -108,9 +99,6 @@ public sealed class Showtime : AggregateRoot<ShowtimeId>
         }
     }
 
-    
-    
-    
     public bool AreSeatsAvailable(IEnumerable<Guid> seatIds)
     {
         return !seatIds.Any(seatId => _reservedSeats.Contains(seatId));

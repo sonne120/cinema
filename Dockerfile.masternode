@@ -3,7 +3,9 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy project files
-COPY src/Cinema.MasterNode.Domain/Cinema.MasterNode.Domain.csproj src/Cinema.MasterNode.Domain/
+# Central package/build settings — must be present before restore
+COPY Directory.Build.props Directory.Packages.props ./
+COPY src/Cinema.ServiceDiscovery/Cinema.ServiceDiscovery.csproj src/Cinema.ServiceDiscovery/
 COPY src/Cinema.MasterNode/Cinema.MasterNode.csproj src/Cinema.MasterNode/
 
 # Restore dependencies for Cinema.MasterNode project
@@ -24,6 +26,11 @@ RUN dotnet publish Cinema.MasterNode.csproj -c Release -o /app/publish /p:UseApp
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
+
+# curl is not present in the aspnet runtime image; HEALTHCHECK below needs it
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy published files
 COPY --from=publish /app/publish .

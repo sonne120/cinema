@@ -31,3 +31,13 @@ public record ChangePasswordRequest(
 public record UpdateProfileRequest(
     string FirstName,
     string LastName);
+
+public record UserProfileResponse(
+    Guid Id,
+    string Email,
+    string FirstName,
+    string LastName,
+    string FullName,
+    string Role,
+    DateTime CreatedAt,
+    DateTime? LastLoginAt);

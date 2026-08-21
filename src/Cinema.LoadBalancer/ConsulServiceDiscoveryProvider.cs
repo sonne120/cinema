@@ -3,6 +3,10 @@ using Microsoft.Extensions.Primitives;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Forwarder;
 
+// Consul 1.7 ships its own RouteConfig/DestinationConfig; in this file both always mean YARP's.
+using RouteConfig = Yarp.ReverseProxy.Configuration.RouteConfig;
+using DestinationConfig = Yarp.ReverseProxy.Configuration.DestinationConfig;
+
 namespace Cinema.LoadBalancer;
 
 public class ConsulProxyConfigProvider : IProxyConfigProvider, IDisposable
@@ -53,7 +57,7 @@ public class ConsulProxyConfigProvider : IProxyConfigProvider, IDisposable
     {
         // Get all healthy instances of the service
         var services = await _consulClient.Health.Service(_serviceName, tag: null, passingOnly: true, _cts.Token);
-        
+
         var destinations = new Dictionary<string, DestinationConfig>();
 
         foreach (var s in services.Response)
@@ -61,7 +65,7 @@ public class ConsulProxyConfigProvider : IProxyConfigProvider, IDisposable
             // IMPORTANT: In K8s, we need the POD IP.
             var address = !string.IsNullOrEmpty(s.Service.Address) ? s.Service.Address : s.Node.Address;
             var port = s.Service.Port;
-            
+
             destinations.Add(s.Service.ID, new DestinationConfig
             {
                 Address = $"http://{address}:{port}"
@@ -78,7 +82,7 @@ public class ConsulProxyConfigProvider : IProxyConfigProvider, IDisposable
         if (destinations.Count != _config.Clusters.FirstOrDefault()?.Destinations?.Count)
         {
              _logger.LogInformation("Updating config. Found {Count} instances for {ServiceName}", destinations.Count, _serviceName);
-             
+
              // Define the Cluster (The backends)
              var cluster = new ClusterConfig
              {
@@ -117,7 +121,7 @@ public class ConsulProxyConfigProvider : IProxyConfigProvider, IDisposable
 
              var oldConfig = _config;
              _config = new ConsulProxyConfig(new[] { route }, new[] { cluster });
-             
+
              // Signal that config has changed
              oldConfig.SignalChange();
         }

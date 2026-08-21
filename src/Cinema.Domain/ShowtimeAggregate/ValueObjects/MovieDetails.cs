@@ -1,10 +1,6 @@
-using Cinema.Domain.Common.Errors;
 using Cinema.Domain.Common.Models;
 
 namespace Cinema.Domain.ShowtimeAggregate.ValueObjects;
-
-
-
 
 public sealed class MovieDetails : ValueObject
 {

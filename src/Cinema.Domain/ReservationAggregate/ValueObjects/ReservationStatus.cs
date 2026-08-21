@@ -2,9 +2,6 @@ using Cinema.Domain.Common.Models;
 
 namespace Cinema.Domain.ReservationAggregate.ValueObjects;
 
-
-
-
 public sealed class ReservationStatus : ValueObject
 {
     public ReservationStatusType Value { get; private set; }

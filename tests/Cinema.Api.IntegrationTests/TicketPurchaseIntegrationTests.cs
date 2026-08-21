@@ -13,7 +13,7 @@ public class TicketPurchaseIntegrationTests
 
     public TicketPurchaseIntegrationTests(CinemaWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateAuthenticatedClient();
     }
 
     [Fact]

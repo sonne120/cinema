@@ -1,4 +1,4 @@
-using Cinema.Api.Filters;
+using Cinema.Api.Mapping;
 using Cinema.Application.Common.Interfaces.Persistence;
 using Cinema.Application.Showtimes.Commands.CreateShowtime;
 using Cinema.Contracts.Showtimes;
@@ -42,17 +42,7 @@ public class ShowtimesController : ControllerBase
         return CreatedAtAction(
             nameof(GetShowtime),
             new { id = showtime.Id.Value },
-            new ShowtimeResponse(
-                showtime.Id.Value,
-                new MovieDetailsResponse(
-                    showtime.MovieDetails.ImdbId,
-                    showtime.MovieDetails.Title,
-                    showtime.MovieDetails.PosterUrl,
-                    showtime.MovieDetails.ReleaseYear),
-                showtime.ScreeningTime.Value,
-                showtime.AuditoriumId,
-                showtime.Status.ToString(),
-                showtime.CreatedAt));
+            showtime.ToResponse());
     }
 
     [HttpGet("{id:guid}")]
@@ -62,31 +52,19 @@ public class ShowtimesController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        
         var showtimeId = ShowtimeId.Create(id);
         var showtime = await _showtimeRepository.GetByIdAsync(showtimeId, cancellationToken);
 
         if (showtime == null)
             return NotFound();
 
-        return Ok(new ShowtimeResponse(
-            showtime.Id.Value,
-            new MovieDetailsResponse(
-                showtime.MovieDetails.ImdbId,
-                showtime.MovieDetails.Title,
-                showtime.MovieDetails.PosterUrl,
-                showtime.MovieDetails.ReleaseYear),
-            showtime.ScreeningTime.Value,
-            showtime.AuditoriumId,
-            showtime.Status.ToString(),
-            showtime.CreatedAt));
+        return Ok(showtime.ToResponse());
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(List<ShowtimeResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListShowtimes(CancellationToken cancellationToken)
     {
-        
         return Ok(new List<ShowtimeResponse>());
     }
 }

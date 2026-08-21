@@ -2,9 +2,6 @@ using FluentValidation;
 
 namespace Cinema.Application.Reservations.Commands.CreateReservation;
 
-
-
-
 public class CreateReservationCommandValidator : AbstractValidator<CreateReservationCommand>
 {
     public CreateReservationCommandValidator()

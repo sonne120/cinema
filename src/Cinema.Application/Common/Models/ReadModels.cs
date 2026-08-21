@@ -1,8 +1,5 @@
 namespace Cinema.Application.Common.Models;
 
-
-
-
 public class ShowtimeReadModel
 {
     public Guid Id { get; set; }
@@ -21,9 +18,6 @@ public class ShowtimeReadModel
     public DateTime? CancelledAt { get; set; }
 }
 
-
-
-
 public class ReservationReadModel
 {
     public Guid Id { get; set; }
@@ -36,9 +30,6 @@ public class ReservationReadModel
     public DateTime ExpiresAt { get; set; }
     public DateTime? ConfirmedAt { get; set; }
 }
-
-
-
 
 public class SeatReadModel
 {

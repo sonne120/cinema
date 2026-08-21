@@ -1,8 +1,28 @@
 # Cinema Booking System
 
-Distributed microservices cinema booking platform built with **.NET 8** and **Clean Architecture**. Implements **CQRS** (SQL Server write + MongoDB read), **Saga Orchestration** with compensation, **Transactional Outbox** via Kafka, **Consul** service discovery, and **JWT** authentication. Full observability via **OpenTelemetry** (Seq, Jaeger, Prometheus). Deployable to Docker Compose or Kubernetes with HPA-based autoscaling.
+> **Cinema Booking System — distributed .NET 8 booking platform: CQRS over SQL Server + MongoDB, transactional outbox to Kafka, saga orchestration with compensation.**
 
----
+> **Write side: every command persists the aggregate change and its integration event in one SQL Server transaction, so there is no dual write — MasterNode relays the outbox to Kafka and deletes on ack.**
+
+> **Read side: ReadService x3 consumes Kafka with auto-commit off and projects into a 3-node MongoDB replica set; a read-only gRPC service answers queries straight from Mongo, never touching the write path.**
+
+> **Service discovery: all six services register themselves in Consul and re-assert on a timer, so a Consul restart repopulates the catalog without restarting anything.**
+
+Microservice platform where bookings enter over **REST/gRPC through a gateway and YARP load
+balancer**, flow through a **SQL Server outbox to Kafka to MongoDB** path, and are queried from the
+read model — a CQRS split with SQL Server as the write side and MongoDB as the query side. Ticket
+purchase runs as an **orchestrated saga**: four steps, each with a compensating action replayed in
+reverse when a step fails.
+
+**Contents:**
+[Architecture](#architecture) ·
+[Ticket purchase saga](#ticket-purchase-saga) ·
+[Service discovery](#service-discovery) ·
+[Observability](#observability) ·
+[Projects](#projects) ·
+[Run it](#run-it) ·
+[Tests](#tests) ·
+[Kubernetes](#kubernetes)
 
 ## Architecture
 
@@ -115,7 +135,7 @@ Distributed microservices cinema booking platform built with **.NET 8** and **Cl
 8. **Queries.** Cinema gRPC (`:7080`) serves read-only queries from MongoDB over HTTP/2. The
    gateway calls it directly, so query traffic never touches SQL Server or the write path.
 
-### Ticket purchase saga
+## Ticket purchase saga
 
 Orchestrated saga with per-step compensation, replayed in reverse for steps that actually ran:
 
@@ -137,24 +157,165 @@ The steps are `ReserveSeatsStep` → `ProcessPaymentStep` → `ConfirmReservatio
 → compensation runs backwards and the saga ends **Compensated**. State and step progress live in
 SQL Server (`SagaStateRepository`), and every step emits a saga event on the bus.
 
----
+## Service discovery
 
-## Quick Start
+<details>
+<summary><b>One registry, three kinds of health check</b> — because not every service can answer an HTTP GET</summary>
+
+Services register themselves through `Cinema.ServiceDiscovery`; the load balancer builds its YARP
+route table from the catalog rather than from static config. Scaling a tier is a Compose change,
+and a failed instance leaves the rotation on its own check.
+
+The check has to match the service's shape — a check that cannot pass is worse than no
+registration at all:
+
+| Service | Instances | Check | Why |
+|---|---|---|---|
+| `cinema-api` | 2 | `HTTP` | plain `/health` endpoint |
+| `cinema-gateway` | 1 | `HTTP` | plain `/health` endpoint |
+| `cinema-loadbalancer` | 1 | `HTTP` | plain `/health` endpoint |
+| `cinema-masternode` | 1 | `HTTP` | plain `/health` endpoint |
+| `cinema-grpc` | 1 | `TCP` | Kestrel is HTTP/2-only, so Consul's HTTP/1.1 probe can never succeed |
+| `cinema-read-service` | 3 | `TTL` | worker host with no listening socket — it pushes a heartbeat instead |
+
+Registration is re-asserted on a timer rather than done once at startup. Consul may be unreachable
+when a service boots, and a Consul restart drops every registration it was holding; a one-shot
+registration leaves the catalog silently empty in both cases. Each tick checks whether its own id
+is still present and re-registers if not — `ServiceRegister` is an upsert, so this is idempotent.
+
+Instances use a stable id (`{service}-{host}`), so a restarting container replaces its own
+entry instead of leaving a critical orphan behind.
+
+</details>
+
+## Observability
+
+<details>
+<summary><b>Three tools, three questions</b> — logs, traces, metrics</summary>
+
+| Tool | Answers | Port |
+|---|---|---|
+| **Seq** | *what happened, exactly* — structured log events (Serilog) | `:5341` |
+| **Jaeger** | *where did one request spend its time* — OTLP traces | `:16686` |
+| **Prometheus** | *how is the system behaving over time* — scraped metrics | `:9090` |
+
+Every service exports OTLP traces to `jaeger:4317` and writes structured logs to `seq:5341`.
+Prometheus scrapes `/metrics` from the API instances, gateway, load balancer and master node.
+
+Two services are intentionally absent from Prometheus: `cinema-read-service` is a worker with no
+HTTP listener, and `cinema-grpc` is h2c-only — the same constraint that forces a TCP check in
+Consul. Both still push traces over OTLP.
+
+Jaeger runs as `all-in-one` with in-memory storage, so traces do not survive a container restart.
+That is deliberate for local development; a persistent backend (Elasticsearch or Cassandra) would
+be the production swap.
+
+</details>
+
+## Projects
+
+<details>
+<summary><b>Project map</b> — what each project does</summary>
+
+- **`Cinema.Api`** x2: REST + gRPC write side. MediatR handlers over domain aggregates; every
+  command writes state and its integration event in one transaction.
+- **`Cinema.ApiGateway`**: single entry point. Ocelot routing, JWT validation, Swagger, Polly
+  retry + circuit breaker around gRPC clients for the write and read paths.
+- **`Cinema.LoadBalancer`**: YARP reverse proxy whose route table is built from the Consul
+  catalog, round-robin across healthy API instances.
+- **`Cinema.MasterNode`**: outbox processor. Claims batches with `READPAST, UPDLOCK, ROWLOCK`,
+  projects into the master database, publishes to Kafka, deletes on ack.
+- **`Cinema.ReadService`** x3: Kafka consumer workers with auto-commit off, projecting
+  denormalized documents into MongoDB.
+- **`Cinema.GrpcService`**: read-only query service over HTTP/2, served straight from MongoDB.
+- **`Cinema.Domain`**: aggregates, value objects, domain events. No dependencies.
+- **`Cinema.Application`**: MediatR commands/queries, saga orchestration, port interfaces.
+- **`Cinema.Infrastructure`**: EF Core, repositories, Kafka producer, JWT, outbox.
+- **`Cinema.Persistence.Read`**: MongoDB read-model repositories.
+- **`Cinema.Contracts`**: DTOs shared across service boundaries.
+- **`Cinema.ServiceDiscovery`**: Consul registration and lookup. Standalone rather than part of
+  `Cinema.Infrastructure` so the gateway and load balancer can register without depending on
+  EF Core, SQL Server and the Mongo driver.
+
+</details>
+
+## Run it
 
 ```bash
-docker-compose -f docker-compose.infrastructure.yml up -d
-docker-compose up -d
+docker compose up -d
 ```
+
+Infrastructure, observability and the services all live in the single `docker-compose.yml`.
 
 | Service | URL |
 |---------|-----|
 | API Gateway | http://localhost:5005 |
+| Cinema API (instance 1 / 2) | http://localhost:5001 / http://localhost:5002 |
+| Load Balancer | http://localhost:5003 |
+| Master Node | http://localhost:5010 |
+| gRPC service (HTTP/2 only) | http://localhost:7080 |
+| Swagger | http://localhost:5001/swagger |
 | Consul UI | http://localhost:8500 |
-| Swagger | http://localhost:8080/swagger |
 | Kafka UI | http://localhost:8090 |
+| Mongo Express | http://localhost:8081 |
 | Seq (Logs) | http://localhost:5341 |
 | Jaeger (Traces) | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
+
+<details>
+<summary><b>Smoke test</b> — 30 assertions across every tier, in one command</summary>
+
+```bash
+./smoke-test.sh        # full output
+./smoke-test.sh -q     # only failures and the summary
+```
+
+Each check asserts an expected value and the script exits non-zero if any fails, so it works in CI
+or a pre-push hook. Covers:
+
+| Section | Asserts |
+|---|---|
+| infrastructure | Consul, Seq, Jaeger, Prometheus, Kafka UI, Mongo Express all answer |
+| service health | `/health` on all six services, including h2c for gRPC |
+| consul registrations | 9 instances, 9 passing, and the right split of `http` / `tcp` / `ttl` checks |
+| observability | Prometheus targets up, Jaeger receiving traces, Seq storing events |
+| auth flow | register, login, authorized call, 401 without a token, 403 for a Customer on a manager route, logout |
+| mongo replica set | exactly one PRIMARY and two SECONDARY members |
+
+A tracked defect is reported as `KNOWN` rather than `FAIL`, so a documented issue stays visible
+without making the suite red.
+
+Register and call an endpoint by hand:
+
+```bash
+curl -s -X POST http://localhost:5001/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"demo@cinema.local","password":"P@ssw0rd123!","firstName":"Demo","lastName":"User"}'
+
+TOKEN=$(curl -s -X POST http://localhost:5001/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"demo@cinema.local","password":"P@ssw0rd123!"}' | jq -r .accessToken)
+
+curl -s http://localhost:5001/api/auth/profile -H "Authorization: Bearer $TOKEN"
+```
+
+The gRPC service speaks HTTP/2 only, so curl needs prior knowledge:
+
+```bash
+curl -s --http2-prior-knowledge http://localhost:7080/health
+```
+
+</details>
+
+## Tests
+
+```bash
+dotnet test Cinema.sln
+```
+
+121 tests across five projects — `Cinema.Domain.UnitTests` (94) carries the aggregate and
+value-object rules, with `Application`, `Infrastructure`, `MasterNode` unit tests and
+`Cinema.Api.IntegrationTests` (16) covering the HTTP surface.
 
 ## Kubernetes
 
@@ -162,3 +323,6 @@ docker-compose up -d
 kubectl apply -k k8s/
 kubectl get pods -n cinema
 ```
+
+Manifests in [`k8s/`](k8s/) cover the services, config, secrets, ingress, HPA autoscaling and the
+observability stack.

@@ -24,13 +24,12 @@ public class CinemaDbContext : DbContext
     public CinemaDbContext(
         DbContextOptions<CinemaDbContext> options) : base(options)
     {
-        
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CinemaDbContext).Assembly);
-        
+
         modelBuilder.Entity<SagaStateEntity>(e =>
         {
             e.HasKey(x => x.Id);
@@ -38,13 +37,12 @@ public class CinemaDbContext : DbContext
             e.Property(x => x.FailureReason).HasMaxLength(1000);
             e.HasIndex(x => new { x.SagaType, x.Status });
         });
-        
+
         base.OnModelCreating(modelBuilder);
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        
         base.OnConfiguring(optionsBuilder);
     }
 }

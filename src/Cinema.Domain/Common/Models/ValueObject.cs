@@ -1,9 +1,5 @@
 namespace Cinema.Domain.Common.Models;
 
-
-
-
-
 public abstract class ValueObject : IEquatable<ValueObject>
 {
     public abstract IEnumerable<object> GetEqualityComponents();
@@ -26,12 +22,12 @@ public abstract class ValueObject : IEquatable<ValueObject>
         return Equals((object?)other);
     }
 
-    public static bool operator ==(ValueObject left, ValueObject right)
+    public static bool operator ==(ValueObject? left, ValueObject? right)
     {
         return Equals(left, right);
     }
 
-    public static bool operator !=(ValueObject left, ValueObject right)
+    public static bool operator !=(ValueObject? left, ValueObject? right)
     {
         return !Equals(left, right);
     }

@@ -1,9 +1,5 @@
 namespace Cinema.Infrastructure.Persistence.Write.Outbox;
 
-
-
-
-
 public class OutboxMessage
 {
     public Guid Id { get; set; }

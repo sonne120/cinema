@@ -2,9 +2,6 @@ using FluentValidation;
 
 namespace Cinema.Application.Showtimes.Commands.CreateShowtime;
 
-
-
-
 public class CreateShowtimeCommandValidator : AbstractValidator<CreateShowtimeCommand>
 {
     public CreateShowtimeCommandValidator()

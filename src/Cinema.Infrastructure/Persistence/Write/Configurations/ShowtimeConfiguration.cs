@@ -5,9 +5,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Cinema.Infrastructure.Persistence.Write.Configurations;
 
-
-
-
 public class ShowtimeConfiguration : IEntityTypeConfiguration<Showtime>
 {
     public void Configure(EntityTypeBuilder<Showtime> builder)
@@ -41,7 +38,6 @@ public class ShowtimeConfiguration : IEntityTypeConfiguration<Showtime>
 
         builder.Property(s => s.CancelledAt);
 
-        
         builder.Ignore(s => s.DomainEvents);
     }
 

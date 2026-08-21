@@ -6,12 +6,13 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using Cinema.ServiceDiscovery;
 
 var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
-    .WriteTo.Seq(builder.Configuration["Seq:ServerUrl"] ?? "http://localhost:5341")
+    .WriteTo.Seq(builder.Configuration["Seq:ServerUrl"] ?? "http://seq:5341")
     .Enrich.WithProperty("Service", "Cinema.MasterNode")
     .CreateLogger();
 builder.Host.UseSerilog();
@@ -66,17 +67,26 @@ builder.Services.AddSingleton(sp =>
         .Build();
 });
 
-
 builder.Services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
 builder.Services.AddHostedService<MasterNodeWorker>();
+
+builder.Services.AddHealthChecks();
+
+builder.Services.AddConsulServiceRegistration(
+    builder.Configuration,
+    serviceName: "cinema-masternode",
+    serviceHost: builder.Configuration["Consul:ServiceHost"] ?? "localhost",
+    servicePort: int.Parse(builder.Configuration["Consul:ServicePort"] ?? "8080"),
+    tags: new[] { "masternode", "cinema", "dotnet", "outbox" });
 
 var app = builder.Build();
 
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 app.MapGet("/", () => "Cinema Master Node Running (Outbox Pattern)");
+app.MapHealthChecks("/health");
 
-/* 
+/*
    Database migration/creation should be handled by an init container or the primary API service,
    not by a background worker node to avoid race conditions.
 */
