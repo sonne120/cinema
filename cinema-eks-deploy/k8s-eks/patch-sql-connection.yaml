@@ -1,0 +1,33 @@
+# RDS SQL Server не допускает пользователя 'sa' — меняем на cinema_admin.
+# Хост остаётся sqlserver-service (ExternalName -> RDS), пароль берётся
+# из секрета cinema-secrets/SQLSERVER_PASSWORD как и раньше.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cinema-api
+  namespace: cinema
+spec:
+  template:
+    spec:
+      containers:
+        - name: cinema-api
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: "Server=sqlserver-service;Database=CinemaDb;User Id=cinema_admin;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True;Encrypt=True"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: master-node
+  namespace: cinema
+spec:
+  template:
+    spec:
+      containers:
+        - name: master-node
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: "Server=sqlserver-service;Database=CinemaDb;User Id=cinema_admin;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True;Encrypt=True"
+            - name: ConnectionStrings__MasterConnection
+              value: "Server=sqlserver-service;Database=CinemaMasterDb;User Id=cinema_admin;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True;Encrypt=True"

@@ -22,7 +22,8 @@ reverse when a step fails.
 [Projects](#projects) ·
 [Run it](#run-it) ·
 [Tests](#tests) ·
-[Kubernetes](#kubernetes)
+[Kubernetes](#kubernetes) ·
+[AWS (EKS)](#aws-eks)
 
 ## Architecture
 
@@ -326,3 +327,62 @@ kubectl get pods -n cinema
 
 Manifests in [`k8s/`](k8s/) cover the services, config, secrets, ingress, HPA autoscaling and the
 observability stack.
+
+## AWS (EKS)
+
+Terraform stands up VPC, EKS, ECR and RDS; a Kustomize overlay repoints the cluster manifests at
+AWS. Everything lives in [`cinema-eks-deploy/`](cinema-eks-deploy/) and nothing about it affects
+local development — `docker compose up -d` stays the way to run the stack on a workstation.
+
+What the overlay changes relative to `k8s/`: SQL Server moves out of the cluster to **RDS**
+(`sqlserver-service` becomes an `ExternalName` record, so in-cluster DNS is unchanged), images point
+at **ECR**, the nginx Ingress is replaced by an **AWS ALB**, and the NetworkPolicy is dropped
+because it blocks ALB IP-target health checks. Mongo, Kafka, Redis, Consul and the observability
+stack stay in the cluster.
+
+```bash
+cd cinema-eks-deploy/terraform
+terraform init && terraform apply          # ~15-20 min, mostly EKS and RDS
+aws eks update-kubeconfig --region eu-central-1 --name cinema-demo
+```
+
+Then push to `master` and CI does the rest.
+
+<details>
+<summary><b>CI deployment</b> — three secrets, then it is automatic</summary>
+
+[`.github/workflows/deploy-eks.yml`](.github/workflows/deploy-eks.yml) builds the five service
+images, pushes them to ECR and rolls the cluster. Authentication is OIDC, so no long-lived AWS keys
+are stored in the repository.
+
+Set these under *Settings → Secrets and variables → Actions*:
+
+| Secret | Where it comes from |
+|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | the IAM role GitHub assumes — see [DEPLOY-EKS.md](cinema-eks-deploy/DEPLOY-EKS.md) |
+| `RDS_ENDPOINT` | `terraform output -raw rds_endpoint` |
+| `RDS_PASSWORD` | Secrets Manager, ARN in `terraform output rds_secret_arn` |
+
+Region and cluster come from the repository *variables* `AWS_REGION` and `EKS_CLUSTER`, defaulting
+to `eu-central-1` and `cinema-demo`.
+
+Until `AWS_DEPLOY_ROLE_ARN` is set the workflow skips itself with a notice rather than failing, so
+the repository stays green without an AWS account attached.
+
+To deploy by hand instead, [DEPLOY-EKS.md](cinema-eks-deploy/DEPLOY-EKS.md) walks through the build,
+the overlay substitutions and `kustomize build | kubectl apply`.
+
+</details>
+
+<details>
+<summary><b>Teardown</b> — order matters</summary>
+
+```bash
+kustomize build cinema-eks-deploy/k8s-eks | kubectl delete -f -
+cd cinema-eks-deploy/terraform && terraform destroy
+```
+
+Delete the Ingress **before** `terraform destroy`. Otherwise the Load Balancer Controller leaves
+orphaned ELBs and target groups behind, and the VPC deletion blocks on them.
+
+</details>

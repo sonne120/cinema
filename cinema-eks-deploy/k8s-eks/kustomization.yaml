@@ -1,0 +1,125 @@
+# Overlay для деплоя в AWS EKS (демо-контур).
+#
+# Что меняет относительно базового k8s/:
+#   1. Образы 6 сервисов -> ECR (реальные значения проставляет CI через
+#      `kustomize edit set image ...`, либо замените плейсхолдеры вручную).
+#   2. SQL Server вынесен из кластера в RDS: in-cluster Deployment/Service/PVC
+#      удаляются, вместо них ExternalName-сервис sqlserver-service -> RDS.
+#   3. Строки подключения к SQL меняют пользователя sa -> cinema_admin
+#      (RDS запрещает 'sa' как мастер-пользователя).
+#   4. Ingress переводится с nginx на AWS ALB (aws-load-balancer-controller).
+#   5. NetworkPolicy удаляется (иначе ALB IP-target health-check'и блокируются).
+#
+# Mongo replica set, Kafka, Zookeeper, Redis, Consul и observability
+# остаются в кластере как в базовом наборе.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cinema
+
+resources:
+  - ../../k8s         # базовый k8s/ в корне репозитория (namespace, configmap, secrets, все сервисы)
+  - ingress-alb.yaml
+
+# Реестр ECR. CI перезаписывает newName/newTag реальными значениями:
+#   kustomize edit set image cinema-api=<acct>.dkr.ecr.<region>.amazonaws.com/cinema-api:<sha>
+images:
+  - name: cinema-api
+    newName: ACCOUNT.dkr.ecr.REGION.amazonaws.com/cinema-api
+    newTag: latest
+  - name: cinema-apigateway
+    newName: ACCOUNT.dkr.ecr.REGION.amazonaws.com/cinema-apigateway
+    newTag: latest
+  - name: cinema-readservice
+    newName: ACCOUNT.dkr.ecr.REGION.amazonaws.com/cinema-readservice
+    newTag: latest
+  - name: cinema-masternode
+    newName: ACCOUNT.dkr.ecr.REGION.amazonaws.com/cinema-masternode
+    newTag: latest
+  - name: cinema-loadbalancer
+    newName: ACCOUNT.dkr.ecr.REGION.amazonaws.com/cinema-loadbalancer
+    newTag: latest
+
+patches:
+  # 1. Удаляем in-cluster SQL Server (заменён на RDS через ExternalName).
+  - target:
+      kind: Deployment
+      name: sqlserver
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: sqlserver
+        namespace: cinema
+  # sqlserver-service: конвертируем базовый ClusterIP в ExternalName -> RDS.
+  # RDS_ENDPOINT замените на `terraform output -raw rds_endpoint`.
+  - target:
+      kind: Service
+      name: sqlserver-service
+    patch: |
+      - op: replace
+        path: /spec
+        value:
+          type: ExternalName
+          externalName: RDS_ENDPOINT
+  - target:
+      kind: PersistentVolumeClaim
+      name: sqlserver-pvc
+    patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: sqlserver-pvc
+        namespace: cinema
+
+  # 2. Удаляем базовые nginx-Ingress'ы (заменяем на ALB в ingress-alb.yaml).
+  - target:
+      kind: Ingress
+      name: cinema-ingress
+    patch: |
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: cinema-ingress
+        namespace: cinema
+  - target:
+      kind: Ingress
+      name: cinema-grpc-ingress
+    patch: |
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: cinema-grpc-ingress
+        namespace: cinema
+
+  # 3. NetworkPolicy несовместима с ALB IP-target health-check'ами — убираем для demo.
+  - target:
+      kind: NetworkPolicy
+      name: cinema-network-policy
+    patch: |
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: cinema-network-policy
+        namespace: cinema
+
+  # 4. Строки подключения к SQL: sa -> cinema_admin (RDS master user).
+  - path: patch-sql-connection.yaml
+  - path: patch-configmap.yaml
+
+  # 5. Пароль RDS. stringData (plaintext) имеет приоритет над base64 data при apply.
+  #    Замените REPLACE_WITH_RDS_PASSWORD на `terraform output` пароль RDS,
+  #    либо в CI: `kustomize edit add ...` / sed по этому файлу.
+  - target:
+      kind: Secret
+      name: cinema-secrets
+    patch: |
+      - op: add
+        path: /stringData
+        value:
+          SQLSERVER_PASSWORD: REPLACE_WITH_RDS_PASSWORD

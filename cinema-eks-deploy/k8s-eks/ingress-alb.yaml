@@ -1,0 +1,75 @@
+# Ingress через AWS Load Balancer Controller -> Application Load Balancer.
+# Создаёт internet-facing ALB с target-type: ip (трафик идёт прямо в поды).
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cinema-alb
+  namespace: cinema
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/success-codes: "200-399"
+    # Общий ALB для REST-ингрессов этой группы.
+    alb.ingress.kubernetes.io/group.name: cinema
+    # Для HTTPS раскомментируйте и укажите ACM-сертификат:
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:REGION:ACCOUNT:certificate/XXXX
+    # alb.ingress.kubernetes.io/ssl-redirect: '443'
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 80
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 80
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: cinema-api-service
+                port:
+                  number: 80
+---
+# Отдельный ALB для gRPC read-service (target group с HTTP/2 / GRPC).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cinema-grpc-alb
+  namespace: cinema
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /grpc.health.v1.Health/Check
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/success-codes: "0-99"
+    alb.ingress.kubernetes.io/group.name: cinema-grpc
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: read-service
+                port:
+                  number: 8081

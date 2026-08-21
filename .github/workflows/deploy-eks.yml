@@ -1,0 +1,167 @@
+name: Deploy to EKS
+
+# Builds the service images, pushes them to ECR and rolls the EKS cluster with
+# the Kustomize overlay in cinema-eks-deploy/k8s-eks.
+#
+# Local development is unaffected: docker-compose.yml remains the single source
+# for running the stack on a workstation. This workflow only touches AWS.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "src/**"
+      - "Dockerfile*"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "k8s/**"
+      - "cinema-eks-deploy/**"
+      - ".github/workflows/deploy-eks.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-eks
+  cancel-in-progress: false
+
+# OIDC federation — no long-lived AWS keys stored in the repository.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+
+  preflight:
+    name: Is this account wired up?
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+      region: ${{ steps.check.outputs.region }}
+      cluster: ${{ steps.check.outputs.cluster }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.AWS_DEPLOY_ROLE_ARN }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::AWS_DEPLOY_ROLE_ARN is not set — skipping the EKS deployment."
+          fi
+          echo "region=${{ vars.AWS_REGION || 'eu-central-1' }}" >> "$GITHUB_OUTPUT"
+          echo "cluster=${{ vars.EKS_CLUSTER || 'cinema-demo' }}" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    name: ECR · ${{ matrix.repo }}
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: cinema-api
+            dockerfile: Dockerfile
+          - repo: cinema-apigateway
+            dockerfile: Dockerfile.gateway
+          - repo: cinema-readservice
+            dockerfile: Dockerfile.readservice
+          - repo: cinema-masternode
+            dockerfile: Dockerfile.masternode
+          - repo: cinema-loadbalancer
+            dockerfile: Dockerfile.loadbalancer
+          # No cinema-grpc entry: k8s/ has a cinema-grpc-ingress but no
+          # Deployment for it, so there is nothing in the cluster to run the
+          # image. Add the Deployment first, then a matrix entry here.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ needs.preflight.outputs.region }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.repo }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.repo }}:latest
+          cache-from: type=gha,scope=eks-${{ matrix.repo }}
+          cache-to: type=gha,scope=eks-${{ matrix.repo }},mode=max
+
+  deploy:
+    name: Roll the cluster
+    needs: [preflight, build-and-push]
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ needs.preflight.outputs.region }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Install kustomize
+        run: |
+          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" \
+            | tar xz && sudo mv kustomize /usr/local/bin/
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region "${{ needs.preflight.outputs.region }}" \
+            --name "${{ needs.preflight.outputs.cluster }}"
+
+      - name: Point the overlay at this build and at RDS
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd cinema-eks-deploy/k8s-eks
+          for svc in cinema-api cinema-apigateway cinema-readservice cinema-masternode cinema-loadbalancer; do
+            kustomize edit set image "${svc}=${REGISTRY}/${svc}:${IMAGE_TAG}"
+          done
+          # The overlay ships RDS_ENDPOINT and REPLACE_WITH_RDS_PASSWORD as
+          # placeholders so nothing secret is committed; fill them in here.
+          sed -i "s/RDS_ENDPOINT/${RDS_ENDPOINT}/g" kustomization.yaml
+          sed -i "s/REPLACE_WITH_RDS_PASSWORD/${RDS_PASSWORD}/g" kustomization.yaml
+
+      - name: Show what will be applied
+        run: kustomize build cinema-eks-deploy/k8s-eks | grep -E "^(kind|  name):" | head -40
+
+      - name: Apply
+        run: kustomize build cinema-eks-deploy/k8s-eks | kubectl apply -f -
+
+      - name: Wait for the rollout
+        run: |
+          for d in cinema-api api-gateway cinema-loadbalancer master-node read-service; do
+            kubectl -n cinema rollout status "deployment/$d" --timeout=300s || exit 1
+          done
+
+      - name: Report the ALB address
+        run: kubectl -n cinema get ingress -o wide

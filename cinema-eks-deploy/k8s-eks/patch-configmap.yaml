@@ -1,0 +1,42 @@
+# appsettings.json из cinema-api-config держит запасную строку подключения к SQL.
+# Реально её переопределяет env ConnectionStrings__DefaultConnection (в .NET env
+# имеет приоритет над appsettings), но для консистентности приводим и её:
+# пользователь cinema_admin, хост sqlserver-service (ExternalName -> RDS).
+# Пароль в приложении всё равно приходит из env/секрета, а не отсюда.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cinema-api-config
+  namespace: cinema
+data:
+  appsettings.json: |
+    {
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "AllowedHosts": "*",
+      "ConnectionStrings": {
+        "DefaultConnection": "Server=sqlserver-service;Database=CinemaDb;User Id=cinema_admin;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True;Encrypt=True"
+      },
+      "Jwt": {
+        "Secret": "YourSuperSecretKeyThatIsAtLeast32CharactersLong!",
+        "Issuer": "CinemaBookingSystem",
+        "Audience": "CinemaBookingSystemUsers",
+        "ExpiryMinutes": 60,
+        "RefreshTokenExpiryDays": 7
+      },
+      "Kafka": {
+        "BootstrapServers": "kafka-service:9092",
+        "Topic": "cinema.domain.events"
+      },
+      "Redis": {
+        "ConnectionString": "redis-service:6379"
+      },
+      "MongoDB": {
+        "ConnectionString": "mongodb://mongodb-service:27017",
+        "DatabaseName": "CinemaReadDb"
+      }
+    }
