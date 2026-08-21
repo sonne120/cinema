@@ -1,0 +1,50 @@
+## .NET build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+publish/
+*.binlog
+
+## Test output
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.opencover.xml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## User-specific / IDE
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+*.swp
+
+## Rider / ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!packages/build/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Secrets — never commit these
+appsettings.*.local.json
+*.pfx
+*.p12
+secrets.json

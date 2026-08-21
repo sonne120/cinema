@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Cinema.Infrastructure.Persistence.Write.Migrations
 {
-    
+
     public partial class InitialCreate : Migration
     {
-        
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -94,7 +94,7 @@ namespace Cinema.Infrastructure.Persistence.Write.Migrations
                 column: "ReservationId");
         }
 
-        
+
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

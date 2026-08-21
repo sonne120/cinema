@@ -1,4 +1,5 @@
 namespace Cinema.Domain.Common.Models;
+
 public class Money : ValueObject
 {
     public decimal Amount { get; private set; }

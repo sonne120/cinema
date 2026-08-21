@@ -1,6 +1,7 @@
 using Cinema.Domain.Common.Models;
 
 namespace Cinema.Application.Sagas.TicketPurchase.Events;
+
 public record TicketPurchaseSagaStartedEvent(
     Guid SagaId,
     Guid ShowtimeId,

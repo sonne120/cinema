@@ -89,7 +89,7 @@ public class MovieDetailsTests
     [InlineData("tt123", "")]
     [InlineData(null, "Title")]
     [InlineData("tt123", null)]
-    public void Create_WithInvalidData_ShouldThrowException(string imdbId, string title)
+    public void Create_WithInvalidData_ShouldThrowException(string? imdbId, string? title)
     {
         var act = () => MovieDetails.Create(imdbId, title);
 

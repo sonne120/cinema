@@ -4,6 +4,7 @@ using Cinema.Application.Sagas.TicketPurchase.Steps;
 using Microsoft.Extensions.Logging;
 
 namespace Cinema.Application.Sagas.TicketPurchase;
+
 public class TicketPurchaseSaga : ISaga<TicketPurchaseSagaState, PurchaseTicketCommand, PurchaseTicketResult>
 {
     private readonly ISagaStateRepository _stateRepository;

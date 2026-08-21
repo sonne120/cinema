@@ -32,13 +32,13 @@ namespace Cinema.ApiGateway.Controllers
 
         private async Task<Metadata> GetAuthHeaders()
         {
-             var accessToken = await HttpContext.GetTokenAsync("access_token");
-             var metadata = new Metadata();
-             if (!string.IsNullOrEmpty(accessToken))
-             {
-                 metadata.Add("Authorization", $"Bearer {accessToken}"); // 2. Forward token to API
-             }
-             return metadata;
+            var accessToken = await HttpContext.GetTokenAsync("access_token");
+            var metadata = new Metadata();
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                metadata.Add("Authorization", $"Bearer {accessToken}"); // 2. Forward token to API
+            }
+            return metadata;
         }
 
         [HttpPost("showtimes")]

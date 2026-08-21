@@ -4,6 +4,7 @@ using Cinema.Domain.PaymentAggregate.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Cinema.Application.Sagas.TicketPurchase.Steps;
+
 public interface IPaymentGateway
 {
     Task<PaymentGatewayResult> ProcessPaymentAsync(

@@ -81,49 +81,49 @@ public class ConsulProxyConfigProvider : IProxyConfigProvider, IDisposable
 
         if (destinations.Count != _config.Clusters.FirstOrDefault()?.Destinations?.Count)
         {
-             _logger.LogInformation("Updating config. Found {Count} instances for {ServiceName}", destinations.Count, _serviceName);
+            _logger.LogInformation("Updating config. Found {Count} instances for {ServiceName}", destinations.Count, _serviceName);
 
-             // Define the Cluster (The backends)
-             var cluster = new ClusterConfig
-             {
-                 ClusterId = "cinema-api-cluster",
-                 LoadBalancingPolicy = "RoundRobin",
-                 Destinations = destinations,
-                 HealthCheck = new HealthCheckConfig
-                 {
-                     Active = new ActiveHealthCheckConfig
-                     {
-                         Enabled = true,
-                         Interval = TimeSpan.FromSeconds(10),
-                         Timeout = TimeSpan.FromSeconds(5),
-                         Path = "/health",
-                         Policy = "ConsecutiveFailures",
-                     }
-                 },
-                 HttpRequest = new ForwarderRequestConfig
-                 {
-                     ActivityTimeout = TimeSpan.FromSeconds(60),
-                     Version = Version.Parse("2.0"),
-                     VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
-                 }
-             };
+            // Define the Cluster (The backends)
+            var cluster = new ClusterConfig
+            {
+                ClusterId = "cinema-api-cluster",
+                LoadBalancingPolicy = "RoundRobin",
+                Destinations = destinations,
+                HealthCheck = new HealthCheckConfig
+                {
+                    Active = new ActiveHealthCheckConfig
+                    {
+                        Enabled = true,
+                        Interval = TimeSpan.FromSeconds(10),
+                        Timeout = TimeSpan.FromSeconds(5),
+                        Path = "/health",
+                        Policy = "ConsecutiveFailures",
+                    }
+                },
+                HttpRequest = new ForwarderRequestConfig
+                {
+                    ActivityTimeout = TimeSpan.FromSeconds(60),
+                    Version = Version.Parse("2.0"),
+                    VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+                }
+            };
 
-             // Define the Route (The matching rule)
-             var route = new RouteConfig
-             {
-                 RouteId = "cinema-api-catchall",
-                 ClusterId = "cinema-api-cluster",
-                 Match = new RouteMatch
-                 {
-                     Path = "{**catch-all}"
-                 }
-             };
+            // Define the Route (The matching rule)
+            var route = new RouteConfig
+            {
+                RouteId = "cinema-api-catchall",
+                ClusterId = "cinema-api-cluster",
+                Match = new RouteMatch
+                {
+                    Path = "{**catch-all}"
+                }
+            };
 
-             var oldConfig = _config;
-             _config = new ConsulProxyConfig(new[] { route }, new[] { cluster });
+            var oldConfig = _config;
+            _config = new ConsulProxyConfig(new[] { route }, new[] { cluster });
 
-             // Signal that config has changed
-             oldConfig.SignalChange();
+            // Signal that config has changed
+            oldConfig.SignalChange();
         }
     }
 

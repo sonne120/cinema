@@ -1,4 +1,5 @@
 namespace Cinema.Contracts.Showtimes;
+
 public record CreateShowtimeRequest(
     string MovieImdbId,
     DateTime ScreeningTime,
