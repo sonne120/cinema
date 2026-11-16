@@ -1,3 +1,11 @@
+![C#](https://img.shields.io/badge/C%23-512BD4)
+![.NET](https://img.shields.io/badge/.NET-8-512BD4)
+![Microservices](https://img.shields.io/badge/architecture-microservices-blue)
+![Language](https://img.shields.io/github/languages/top/sonne120/cinema)
+![Stars](https://img.shields.io/github/stars/sonne120/cinema)
+![Forks](https://img.shields.io/github/forks/sonne120/cinema)
+![Last commit](https://img.shields.io/github/last-commit/sonne120/cinema)
+
 # Cinema Booking System
 
 > **Cinema Booking System — distributed .NET 8 booking platform: CQRS over SQL Server + MongoDB, transactional outbox to Kafka, saga orchestration with compensation.**
