@@ -5,6 +5,10 @@
 ![Stars](https://img.shields.io/github/stars/sonne120/cinema)
 ![Forks](https://img.shields.io/github/forks/sonne120/cinema)
 ![Last commit](https://img.shields.io/github/last-commit/sonne120/cinema)
+[![Release](https://img.shields.io/github/v/release/sonne120/cinema)](https://github.com/sonne120/cinema/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/sonne120/cinema/total)](https://github.com/sonne120/cinema/releases)
+[![Latest](https://img.shields.io/github/downloads/sonne120/cinema/latest/total)](https://github.com/sonne120/cinema/releases/latest)
+
 
 # Cinema Booking System
 
